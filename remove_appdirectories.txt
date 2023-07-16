@@ -1,0 +1,2 @@
+Program Files (x86)\Microsoft\Edge
+Program Files (x86)\Microsoft\EdgeUpdate
