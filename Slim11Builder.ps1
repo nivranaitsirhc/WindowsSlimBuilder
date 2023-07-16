@@ -567,15 +567,15 @@ foreach ( $selected_index in $indices ) {
         Write-ColorOutput -FC Black -BC White "Unmounting Image & Commiting Changes..."
         dism /unmount-image /mountdir:"$dir_scratch\$verified_index" /commit
 
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Exporting Image..."
-        if ( $image_type -eq 'esd' ) {
-            Write-Output "Converting Image WIM back to ESD.."
-            dism /Export-Image /SourceImageFile:$dir_root\$verified_index-install.wim /SourceIndex:1 /DestinationImageFile:$dir_root\$verified_index-install.esd /compress:recovery
-        } else {
-            Write-Output "Extracting Image from Source Install.wim to ESD.."
-            dism /Export-Image /SourceImageFile:$dir_source\sources\install.wim /SourceIndex:$verified_index /DestinationImageFile:$dir_root\$verified_index-install.esd /compress:recovery
-        }
+        # Write-Output `n
+        # Write-ColorOutput -FC Black -BC White "Exporting Image..."
+        # if ( $image_type -eq 'esd' ) {
+        #     Write-Output "Converting Image WIM back to ESD.."
+        #     dism /Export-Image /SourceImageFile:$dir_root\$verified_index-install.wim /SourceIndex:1 /DestinationImageFile:$dir_root\$verified_index-install.esd /compress:recovery
+        # } else {
+        #     Write-Output "Extracting Image from Source Install.wim to ESD.."
+        #     dism /Export-Image /SourceImageFile:$dir_source\sources\install.wim /SourceIndex:$verified_index /DestinationImageFile:$dir_root\$verified_index-install.esd /compress:recovery
+        # }
 
         
         Write-Output `n
@@ -591,13 +591,30 @@ Write-ColorOutput -FC Yellow "Consolidating Images into one Image File.."
 $skipIndex = $false
 $hostIndex = 1
 foreach ( $index in $indices ) {
+    # If Image is ESD the files are in root_dir with format $index-install.wim
+    # If Image is WIM the files are in root_dir\source\sources\install.wim
+    # For ESD, convert the 1st index to ESD and export the rest of wim to 1st
+    # For WIM, export the 1st index to ESD and export the rest of wim to 1st
+
+    if ( $image_type -eq 'esd' ) {
+        $source_wim = "$dir_root\$index-install.wim"
+    } else {
+        $source_wim = "$dir_root\source\sources\install.wim"
+    }
     if ( $skipIndex -eq $false ) {
         $skipIndex = $true
         $hostIndex = $index
+        # convert to ESD
+        Write-Output "Converting to install.esd.."
+        dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity    
         continue
     }
-    Write-Output "Merging $index to $rootIndex"
-    dism /Export-Image /SourceImageFile:$dir_root\$index-install.esd /SourceIndex:1 /DestinationImageFile:$dir_root\$hostIndex-install.esd /compress:recovery /CheckIntegrity
+    Write-Output "Merging $index to install.esd.."
+    if ( $image_type -eq 'esd' ) {
+        dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity
+    } else {
+        dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:$index /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity
+    }
 }
 
 Write-Output "Removing Original Source Image.."
