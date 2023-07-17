@@ -231,7 +231,7 @@ function Remove-File{
         if ( Test-Path -Path "$Working_Directory\$app_file" -PathType Leaf ) {
             Write-Output "Remove-File: Processing `"$app_file`""
             takeown /f "$Working_Directory\$app_file" >$null
-            # icacls "$Working_Directory\$app_file" /grant Administrators:F
+            icacls "$Working_Directory\$app_file" /grant Administrators:F
             Remove-Item -Force "$Working_Directory\$app_file"
         } else {
             Write-ColorOutput -FC Magenta "Remove-File: Not found! $app_file"
