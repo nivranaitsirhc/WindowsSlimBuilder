@@ -621,7 +621,6 @@ foreach ( $index in $indices ) {
     }
 }
 
-$image_type='esd'
 Write-Output `n
 Write-Output "Removing Original Source Image.."
 Remove-Item "$dir_source\sources\install.$image_type"
