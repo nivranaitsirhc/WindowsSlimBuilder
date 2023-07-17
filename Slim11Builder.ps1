@@ -197,47 +197,47 @@ function Remove-AppPackagesFromFileListList{
     Write-ColorOutput -FC Green "Remove-AppPackagesFromFileList: Complete!`n"
 }
 
-function Remove-AppDirectories{
+function Remove-Directories{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to Working Directory")]
         [String[]]$Working_Directory,
         [Parameter(Mandatory=$true,HelpMessage="Complete path to app list file")]
         [String[]]$Config_File
     )
-    Write-Output "Remove-AppDirectories: Removing Applicaiton Directories..`n"
+    Write-Output "Remove-Directories: Removing Directory..`n"
     foreach ( $app_dir in [System.IO.File]::ReadLines("$Config_File")) {
         if ( Test-Path -Path "$Working_Directory\$app_dir" -PathType Leaf ) {
-            Write-Output "Remove-AppDirectories: Processing `"$app_dir`""
+            Write-Output "Remove-Directories: Processing `"$app_dir`""
             takeown /f $Working_Directory\$app_dir
             icacls $Working_Directory\$app_dir /grant Administrators:F /T /C /inheritance:r
             Remove-Item -Recurse -Force "$Working_Directory\$app_dir"
         } else {
-            Write-ColorOutput -FC Magenta "Remove-AppDirectories: Not found! $app_dir"
+            Write-ColorOutput -FC Magenta "Remove-Directories: Not found! $app_dir"
         }
     }
-    Write-ColorOutput -FC Green "Remove-AppDirectories: Complete!`n"
+    Write-ColorOutput -FC Green "Remove-Directories: Complete!`n"
 
 }
 
-function Remove-AppFiles{
+function Remove-Files{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to Working Directory")]
         [String[]]$Working_Directory,
         [Parameter(Mandatory=$true,HelpMessage="Complete path to app list file")]
         [String[]]$Config_File
     )
-    Write-Output "Remove-AppDirectories: Removing Applicaiton Directories..`n"
+    Write-Output "Remove-Files: Removing Files..`n"
     foreach ( $app_file in [System.IO.File]::ReadLines("$Config_File")) {
         if ( Test-Path -Path "$Working_Directory\$app_file" -PathType Leaf ) {
-            Write-Output "Remove-AppDirectories: Processing `"$app_file`""
+            Write-Output "Remove-Files: Processing `"$app_file`""
             takeown /f $Working_Directory\$app_file >$null
             icacls $Working_Directory\$app_file /grant Administrators:F /T /C /inheritance:r
             Remove-Item -Force "$Working_Directory\$app_file"
         } else {
-            Write-ColorOutput -FC Magenta "Remove-AppDirectories: Not found! $app_file"
+            Write-ColorOutput -FC Magenta "Remove-Files: Not found! $app_file"
         }
     }
-    Write-ColorOutput -FC Green "Remove-AppDirectories: Complete!`n"
+    Write-ColorOutput -FC Green "Remove-Files: Complete!`n"
 }
 
 function Convert-ESD2WIM{
@@ -462,10 +462,15 @@ if ( -not ( Test-Path -Path $driveLetter":\sources\install.wim" -PathType Leaf )
         Exit-Script
     }
     $image_type = "esd"
-    Write-ColorOutput -FC Magenta "ESD Format detected!"
 }
 Write-ColorOutput -FC Green "Install Image Found!"
 Write-Output `n
+
+# Show Warning How ESD is process.
+if ($image_type -eq "esd") {
+    Write-ColorOutput -FC Magenta "ESD Format detected!"
+    Write-ColorOutput -FC Red -BC Black "Warning! Since ESD are read-only. A few steps with a lot of overhead are necessary. These are cpu intensive an my lag your computer on low-end devices."
+}
 
 # Copy Windwos image to source directory
 Write-Output "Copying Windows image... (This may take a while.)"
@@ -544,13 +549,13 @@ foreach ( $selected_index in $indices ) {
         
         Write-Output `n
         Write-ColorOutput -FC Black -BC White "Removing Applicaiton Directories.."
-        Remove-AppDirectories -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appdirectories.txt"
+        Remove-Directories -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appdirectories.txt"
         #Start-Sleep -Seconds 1
 
         
         Write-Output `n
         Write-ColorOutput -FC Black -BC White "Removing Applicaiton Files.."
-        Remove-AppFiles -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appfiles.txt"
+        Remove-Files -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appfiles.txt"
         #Start-Sleep -Seconds 1
 
         Write-Output `n
@@ -622,7 +627,7 @@ Write-Output "Windows image completed. Continuing with boot.wim."
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Processing Boot Image:"
 Write-Output `n
-mkdir -p "$dir_scratch\boot" >$null
+mkdir -p "$dir_scratch\boot" -Force >$null
 dism /mount-image /imagefile:$dir_source\sources\boot.wim /index:2 /mountdir:$dir_scratch\boot
 
 Write-Output `n
