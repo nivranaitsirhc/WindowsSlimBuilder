@@ -518,6 +518,7 @@ foreach ( $selected_index in $indices ) {
             # Covert to WIM because ESD is Read-Only
             Write-ColorOutput -FC Magenta "Extracting WIM from ESD.."
             # Extract to $dir_root
+            if ( Test-Path -Path "$dir_root\$verified_index-install.wim" -PathType Leaf ) { Remove-Item -Path "$dir_root\$verified_index-install.wim" -Force }
             dism /Export-Image /SourceImageFile:$dir_source\sources\install.esd /SourceIndex:$verified_index /DestinationImageFile:$dir_root\$verified_index-install.wim /Compress:max /CheckIntegrity
             if ($LASTEXITCODE -ne 0) {Exit-Script}
             # Mount to dir_scratch
