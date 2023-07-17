@@ -209,7 +209,7 @@ function Remove-AppDirectories{
         if ( Test-Path -Path "$Working_Directory\$app_dir" -PathType Leaf ) {
             Write-Output "Remove-AppDirectories: Processing `"$app_dir`""
             takeown /f $Working_Directory\$app_dir
-            icacls $Working_Directory\$app_dir /grant Administrators:F /T /C
+            icacls $Working_Directory\$app_dir /grant Administrators:F /T /C /inheritance:r
             Remove-Item -Recurse -Force "$Working_Directory\$app_dir"
         } else {
             Write-ColorOutput -FC Magenta "Remove-AppDirectories: Not found! $app_dir"
@@ -230,10 +230,8 @@ function Remove-AppFiles{
     foreach ( $app_file in [System.IO.File]::ReadLines("$Config_File")) {
         if ( Test-Path -Path "$Working_Directory\$app_file" -PathType Leaf ) {
             Write-Output "Remove-AppDirectories: Processing `"$app_file`""
-            Write-Debug "takeown of $app_file.."
             takeown /f $Working_Directory\$app_file >$null
-            Write-Debug "icacls  of $app_file.."
-            icacls $Working_Directory\$app_file /grant Administrators:F /T /C >$null
+            icacls $Working_Directory\$app_file /grant Administrators:F /T /C /inheritance:r
             Remove-Item -Force "$Working_Directory\$app_file"
         } else {
             Write-ColorOutput -FC Magenta "Remove-AppDirectories: Not found! $app_file"
@@ -259,25 +257,25 @@ function Convert-ESD2WIM{
 }
 
 function Set-BypassSystemRequirments{
-    Write-Output "Disabling UnsupportedHardwareNotificationCache SV1 in Default"
+    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV1 in Default"
     Reg add "HKLM\zDEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f 
-    Write-Output "Disabling UnsupportedHardwareNotificationCache SV2 in Default"
+    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV2 in Default"
     Reg add "HKLM\zDEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f 
-    Write-Output "Disabling UnsupportedHardwareNotificationCache SV1 in USER"
+    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV1 in USER"
     Reg add "HKLM\zNTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f 
-    Write-Output "Disabling UnsupportedHardwareNotificationCache SV2 in USER"
+    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV2 in USER"
     Reg add "HKLM\zNTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f 
-    Write-Output "Enabling BypassCPUCheck in System"
+    Write-Output "Enabling - BypassCPUCheck in System"
     Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassCPUCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling BypassRAMCheck in System"
+    Write-Output "Enabling - BypassRAMCheck in System"
     Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling BypassSecureBootCheck in System"
+    Write-Output "Enabling - BypassSecureBootCheck in System"
     Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling BypassStorageCheck in System"
+    Write-Output "Enabling - BypassStorageCheck in System"
     Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling BypassTPMCheck in System"
+    Write-Output "Enabling - BypassTPMCheck in System"
     Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling AllowUpgradesWithUnsupportedTPMOrCPU in System"
+    Write-Output "Enabling - AllowUpgradesWithUnsupportedTPMOrCPU in System"
     Reg add "HKLM\zSYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d "1" /f 
 }
 
@@ -288,27 +286,27 @@ function Mount-Registry{
     )
     if ($Working_Directory -ne '') {
         Write-ColorOutput -FC Yellow "Loading Registry..."
-        Write-Output "Loading COMPONENTS"
+        Write-Output "Loading - COMPONENTS"
         Reg load HKLM\zCOMPONENTS   "$Working_Directory\Windows\System32\config\COMPONENTS" 
-        Write-Output "Loading DEFAULT" 
+        Write-Output "Loading - DEFAULT" 
         Reg load HKLM\zDEFAULT      "$Working_Directory\Windows\System32\config\default"    
-        Write-Output "Loading SOFTWARE"
+        Write-Output "Loading - SOFTWARE"
         Reg load HKLM\zSOFTWARE     "$Working_Directory\Windows\System32\config\SOFTWARE"   
-        Write-Output "Loading SYSTEM"
+        Write-Output "Loading - SYSTEM"
         Reg load HKLM\zSYSTEM       "$Working_Directory\Windows\System32\config\SYSTEM"     
-        Write-Output "Loading USER"
+        Write-Output "Loading - USER"
         Reg load HKLM\zNTUSER       "$Working_Directory\Users\Default\ntuser.dat"           
     } else {
         Write-ColorOutput -FC Yellow "Unloading Registry..."
-        Write-Output "Unloading COMPONENTS"
+        Write-Output "Unloading - COMPONENTS"
         Reg unload HKLM\zCOMPONENTS
-        Write-Output "Unloading DEFAULT"
+        Write-Output "Unloading - DEFAULT"
         Reg unload HKLM\zDEFAULT
-        Write-Output "Unloading SOFTWARE"
+        Write-Output "Unloading - SOFTWARE"
         Reg unload HKLM\zSOFTWARE
-        Write-Output "Unloading SYSTEM"
+        Write-Output "Unloading - SYSTEM"
         Reg unload HKLM\zSYSTEM
-        Write-Output "Unloading USER"
+        Write-Output "Unloading - USER"
         Reg unload HKLM\zNTUSER
     }
 }
@@ -586,10 +584,10 @@ foreach ( $selected_index in $indices ) {
 Write-ColorOutput -FC Green "Done Patching Install Image`n"
 
 
-Write-ColorOutput -FC Yellow "Consolidating Images into one Image File.."
+Write-ColorOutput -FC White -BC Black "Consolidating Images into one Image File:"
 # Merge All Images to the First Image
 $skipIndex = $false
-$hostIndex = 1
+$source_wim = "$dir_root\source\sources\install.wim"
 foreach ( $index in $indices ) {
     # If Image is ESD the files are in root_dir with format $index-install.wim
     # If Image is WIM the files are in root_dir\source\sources\install.wim
@@ -598,32 +596,27 @@ foreach ( $index in $indices ) {
 
     if ( $image_type -eq 'esd' ) {
         $source_wim = "$dir_root\$index-install.wim"
+        Write-Output "Merging $source_wim to install.esd.."
+        if ( $skipIndex -eq $false ) {
+            $skipIndex = $true
+            # convert to ESD
+            dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity    
+            continue
+        } else {
+            # add to ESD
+            dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity
+        }
     } else {
-        $source_wim = "$dir_root\source\sources\install.wim"
-    }
-    if ( $skipIndex -eq $false ) {
-        $skipIndex = $true
-        $hostIndex = $index
-        # convert to ESD
-        Write-Output "Converting to install.esd.."
-        dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity    
-        continue
-    }
-    Write-Output "Merging $index to install.esd.."
-    if ( $image_type -eq 'esd' ) {
-        dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity
-    } else {
-        dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:$index /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity
+        Write-Output "Merging $source_wim to install.wim"
+        dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:$index /DestinationImageFile:$dir_root\install.wim /compress:max /CheckIntegrity
     }
 }
 
 Write-Output "Removing Original Source Image.."
 Remove-Item "$dir_source\sources\install.$image_type"
-
 Write-Output "Inserting New Source Image.."
-Copy-File -From "$dir_root\$hostIndex-install.esd" -TO "$dir_source\sources\install.esd" -Activity "Copying new install.esd to souce directory"
-
-Write-Output "Windows image completed. Continuing with boot.wim.`n"
+Copy-WithProgress -Source "$dir_root\install.$image_type" -Destination "$dir_source\sources\install.$image_type" -Activity "Copying new install.$image_type to souce directory"
+Write-Output "Windows image completed. Continuing with boot.wim."
 
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Processing Boot Image:"
@@ -647,17 +640,18 @@ Write-Output `n
 
 Write-Output "Copying unattended xml file for bypassing MS account on OOBE..."
 Copy-WithProgress -Source "$PSScriptRoot\autounattend.xml"  -Destination "$dir_sources\autounattend.xml"
-Write-Output `n
 
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Generating ISO file..."
-Write-Output `n
 if ( Test-Path -Path "$PSScriptRoot\Windows_Slim11.iso" -PathType Leaf) {Remove-Item -Path "$PSScriptRoot\Windows_Slim11.iso" -Force}
 # $boot_data="2#p0,e,b$dir_source\boot\etfsboot.com#pEF,e,b$dir_source\efi\microsoft\boot\efisys.bin $dir_source $PSScriptRoot\Slim11.iso"
 # & "$PSScriptRoot\oscdimg.exe" -m -o -u2 -udfver102 -bootdata:$boot_data
 & "$PSScriptRoot\oscdimg.exe" -m -o -u2 -udfver102 -bootdata:2`#p0,e,b$dir_source\boot\etfsboot.com`#pEF,e,b$dir_source\efi\microsoft\boot\efisys.bin $dir_source $PSScriptRoot\Windows_Slim11.iso
 
-Write-ColorOutput -FC Green "Creation completed!"
+Write-Output `n
+Write-ColorOutput -FC Green -BC Black "Creation completed!"
+
+Write-Output `n
 Write-ColorOutput -FC Red "Working directory $dir_root will be purge if you continue."
 $CleanUp = Read-Host -Prompt "Please enter `"No`" to skip clean up"
 
