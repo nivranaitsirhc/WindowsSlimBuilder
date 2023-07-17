@@ -29,39 +29,39 @@ function Write-ColorOutput(){
     # restore the original color
     # $Host.UI.RawUI.ForegroundColor = $_FC
 }
-function Copy-File{
+function Copy-FileWithProgress{
     Param(
         [Parameter(Mandatory=$true)]
-        [string]$From,
+        [string]$Source,
         [Parameter(Mandatory=$true)]
-        [string]$To,
+        [string]$Destination,
         [string]$Activity='Copying file'
     )
-    $FromFile = [io.file]::OpenRead($From)
-    $ToFile = [io.file]::OpenWrite($To)
-    Write-Progress -Activity "Copying file" -status "$From -> $To" -PercentComplete 0
+    $SourceFile = [io.file]::OpenRead($Source)
+    $DestinationFile = [io.file]::OpenWrite($Destination)
+    Write-Progress -Activity "Copying file" -status "$Source -> $Destination" -PercentComplete 0
     try {
         [byte[]]$buff = new-object byte[] 4096
         [long]$total = [int]$count = 0
         do {
-            $count = $FromFile.Read($buff, 0, $buff.Length)
-            $ToFile.Write($buff, 0, $count)
+            $count = $SourceFile.Read($buff, 0, $buff.Length)
+            $DestinationFile.Write($buff, 0, $count)
             $total += $count
             if ($total % 1mb -eq 0) {
                 Write-Progress -Activity "$Activity" -status "$From -> $To" `
-                   -PercentComplete ([long]($total * 100 / $FromFile.Length))
+                   -PercentComplete ([long]($total * 100 / $SourceFile.Length))
             }
         } while ($count -gt 0)
     }
     finally {
-        $FromFile.Dispose()
-        $ToFile.Dispose()
-        Write-Progress -Activity "Copying file" -Status "Ready" -Completed
+        $SourceFile.Dispose()
+        $DestinationFile.Dispose()
+        Write-Progress -Activity "$Activity" -Status "Ready" -Completed
     }
 }
 
 # https://stackoverflow.com/questions/13883404/custom-robocopy-progress-bar-in-powershell
-function Copy-WithProgress {
+function Copy-DirWithProgress {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
@@ -208,8 +208,8 @@ function Remove-Directories{
     foreach ( $app_dir in [System.IO.File]::ReadLines("$Config_File")) {
         if ( Test-Path -Path "$Working_Directory\$app_dir" -PathType Leaf ) {
             Write-Output "Remove-Directories: Processing `"$app_dir`""
-            takeown /f $Working_Directory\$app_dir
-            icacls $Working_Directory\$app_dir /grant Administrators:F /T /C /inheritance:r
+            takeown /f "$Working_Directory\$app_dir" >$null
+            icacls "$Working_Directory\$app_dir\*" /reset /Q /T /C
             Remove-Item -Recurse -Force "$Working_Directory\$app_dir"
         } else {
             Write-ColorOutput -FC Magenta "Remove-Directories: Not found! $app_dir"
@@ -219,25 +219,25 @@ function Remove-Directories{
 
 }
 
-function Remove-Files{
+function Remove-File{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to Working Directory")]
         [String[]]$Working_Directory,
         [Parameter(Mandatory=$true,HelpMessage="Complete path to app list file")]
         [String[]]$Config_File
     )
-    Write-Output "Remove-Files: Removing Files..`n"
+    Write-Output "Remove-File: Removing Files..`n"
     foreach ( $app_file in [System.IO.File]::ReadLines("$Config_File")) {
         if ( Test-Path -Path "$Working_Directory\$app_file" -PathType Leaf ) {
-            Write-Output "Remove-Files: Processing `"$app_file`""
-            takeown /f $Working_Directory\$app_file >$null
-            icacls $Working_Directory\$app_file /grant Administrators:F /T /C /inheritance:r
+            Write-Output "Remove-File: Processing `"$app_file`""
+            takeown /f "$Working_Directory\$app_file" >$null
+            # icacls "$Working_Directory\$app_file" /grant Administrators:F
             Remove-Item -Force "$Working_Directory\$app_file"
         } else {
-            Write-ColorOutput -FC Magenta "Remove-Files: Not found! $app_file"
+            Write-ColorOutput -FC Magenta "Remove-File: Not found! $app_file"
         }
     }
-    Write-ColorOutput -FC Green "Remove-Files: Complete!`n"
+    Write-ColorOutput -FC Green "Remove-File: Complete!`n"
 }
 
 function Convert-ESD2WIM{
@@ -355,7 +355,7 @@ function Update-RegistryOnInstallWIM{
     Write-Output "Processing BypassNRO.."
     Reg add "HKLM\zSOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v "BypassNRO" /t REG_DWORD /d "1" /f  
     Write-Output "Inserting autounattend.xml.."
-    Copy-WithProgress -Source "$PSScriptRoot\autounattend.xml" -Destination "$dir_source\Windows\System32\Sysprep\autounattend.xml" -Activity "Inserting autounattend.xml"
+    Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml" -Destination "$Working_Directory\Windows\System32\Sysprep\autounattend.xml" -Activity "Inserting autounattend.xml"
     
     Write-ColorOutput -FC Yellow "Disabling Reserved Storage:"
     Write-Output "Processing ShippedWithReserves.."
@@ -429,12 +429,13 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
    Write-ColorOutput -FC Red "If a Windows Image is still mounted here it will take longer to reset."
    $reset_root_dir = Read-Host -Prompt "`nPlease enter `'Nuke`' to reset the working directory or enter anything to skip"
    # Need to Unmount Images Regardless..
-   foreach ($path in Get-WindowsImage -Mounted) {if($path -imatch "slim11builder" ){Dismount-WindowsIamge -Path $path -Discard}}
+   foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output: "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
    if ( $reset_root_dir -imatch 'nuke') {
         Write-Output "Clearing Working Directory.."
-        takeown /f "$dir_root"
-        icacls "$dir_root" /grant Administrators:F /T /C
-        Remove-Item -Recurse -Force -Path "$dir_root"
+        # Take Ownership of $dir_scratch and reset all permissions.
+        takeown /F "$dir_scratch" >$null
+        icacls "$dir_scratch\*" /Q /C /T /reset
+        Remove-Item -Recurse -Force -Path "$dir_root" >$null
    }
    Clear-Host
    Show-Slim11Header
@@ -468,14 +469,14 @@ Write-Output `n
 
 # Show Warning How ESD is process.
 if ($image_type -eq "esd") {
-    Write-ColorOutput -FC Magenta "ESD Format detected!"
-    Write-ColorOutput -FC Red -BC Black "Warning! Since ESD are read-only. A few steps with a lot of overhead are necessary. These are cpu intensive an my lag your computer on low-end devices."
+    Write-ColorOutput -FC Magenta -BC Black "ESD Format detected!"
+    Write-ColorOutput -FC Red -BC Black "Warning! Since ESD's are read-only. A few steps with a lot of overhead are necessary.`nThese are CPU/Memory intensive and may lag your computer specially on low-end devices."
 }
 
 # Copy Windwos image to source directory
 Write-Output "Copying Windows image... (This may take a while.)"
 # xcopy.exe /E /I /H /R /Y /J $driveLetter":" $dir_source 
-Copy-WithProgress -Source $driveLetter":" -Destination "$dir_source" -Activity "Copying Windows Image to $dir_source"
+Copy-DirWithProgress -Source $driveLetter":" -Destination "$dir_source" -Activity "Copying Windows Image to $dir_source"
 # Start-Sleep -Seconds 3
 
 Write-Output "Getting Image information:"
@@ -555,7 +556,7 @@ foreach ( $selected_index in $indices ) {
         
         Write-Output `n
         Write-ColorOutput -FC Black -BC White "Removing Applicaiton Files.."
-        Remove-Files -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appfiles.txt"
+        Remove-File -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appfiles.txt"
         #Start-Sleep -Seconds 1
 
         Write-Output `n
@@ -602,7 +603,8 @@ foreach ( $index in $indices ) {
 
     if ( $image_type -eq 'esd' ) {
         $source_wim = "$dir_root\$index-install.wim"
-        Write-Output "Merging $source_wim to install.esd.."
+        Write-Output `n
+        Write-ColorOutput -FC Yellow "Merging $source_wim to install.esd.."
         if ( $skipIndex -eq $false ) {
             $skipIndex = $true
             # convert to ESD
@@ -613,16 +615,21 @@ foreach ( $index in $indices ) {
             dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity
         }
     } else {
-        Write-Output "Merging $source_wim to install.wim"
+        Write-Output `n
+        Write-ColorOutput -FC Yellow "Merging $source_wim to install.wim.."
         dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:$index /DestinationImageFile:$dir_root\install.wim /compress:max /CheckIntegrity
     }
 }
 
+$image_type='esd'
+Write-Output `n
 Write-Output "Removing Original Source Image.."
 Remove-Item "$dir_source\sources\install.$image_type"
 Write-Output "Inserting New Source Image.."
-Copy-WithProgress -Source "$dir_root\install.$image_type" -Destination "$dir_source\sources\install.$image_type" -Activity "Copying new install.$image_type to souce directory"
-Write-Output "Windows image completed. Continuing with boot.wim."
+Copy-FileWithProgress -Source "$dir_root\install.$image_type" -Destination "$dir_source\sources\install.$image_type" -Activity "Copying new install.$image_type to souce directory"
+
+Write-Output `n
+Write-ColorOutput -FC Green "Windows Image completed."
 
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Processing Boot Image:"
@@ -637,6 +644,7 @@ Update-RegistryOnBootWIM -Working_Directory "$dir_scratch\boot"
 Write-Output "Unmounting Boot image..."
 dism /unmount-image /mountdir:$dir_scratch\boot /commit
 
+Write-Output `n
 Write-ColorOutput -FC Green "Done Patching Boot Image!"
 
 # Compile ISO
@@ -644,8 +652,8 @@ Write-Output `n
 Write-ColorOutput -FC Green -BC Black "Slim11 Image is now completed! Finalizing Sources.."
 Write-Output `n
 
-Write-Output "Copying unattended xml file for bypassing MS account on OOBE..."
-Copy-WithProgress -Source "$PSScriptRoot\autounattend.xml"  -Destination "$dir_sources\autounattend.xml"
+Write-Output "Copying Unattended XML file for bypassing MS account on OOBE..."
+Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml"  -Destination "$dir_sources\autounattend.xml" -Activity "Inserting unattened.xml"
 
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Generating ISO file..."
@@ -655,10 +663,11 @@ if ( Test-Path -Path "$PSScriptRoot\Windows_Slim11.iso" -PathType Leaf) {Remove-
 & "$PSScriptRoot\oscdimg.exe" -m -o -u2 -udfver102 -bootdata:2`#p0,e,b$dir_source\boot\etfsboot.com`#pEF,e,b$dir_source\efi\microsoft\boot\efisys.bin $dir_source $PSScriptRoot\Windows_Slim11.iso
 
 Write-Output `n
-Write-ColorOutput -FC Green -BC Black "Creation completed!"
+Write-ColorOutput -FC Green -BC Black "Creation completed! Done!"
 
 Write-Output `n
-Write-ColorOutput -FC Red "Working directory $dir_root will be purge if you continue."
+Write-ColorOutput -FC Red "Cleanup? Working directory $dir_root will be purge if you continue."
+Write-Output `n
 $CleanUp = Read-Host -Prompt "Please enter `"No`" to skip clean up"
 
 if ($CleanUp -inotmatch "no") {
