@@ -9,8 +9,8 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 # Debug Parameter
-#$DebugPreference = "SilentlyContinue"      # Disable Debug Messages
-$DebugPreference = "Continue"               # Enable Debug Messages
+$DebugPreference = "SilentlyContinue"      # Disable Debug Messages
+# $DebugPreference = "Continue"               # Enable Debug Messages
 
 function Write-ColorOutput(){
     Param(
