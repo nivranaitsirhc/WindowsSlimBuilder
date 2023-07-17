@@ -429,7 +429,7 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
    Write-ColorOutput -FC Red "If a Windows Image is still mounted here it will take longer to reset."
    $reset_root_dir = Read-Host -Prompt "`nPlease enter `'Nuke`' to reset the working directory or enter anything to skip"
    # Need to Unmount Images Regardless..
-   foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output: "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
+   foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
    if ( $reset_root_dir -imatch 'nuke') {
         Write-Output "Clearing Working Directory.."
         # Take Ownership of $dir_scratch and reset all permissions.
