@@ -486,7 +486,7 @@ function Get-OSCDIMG_From_Tiny11GithubRepo(){
     }
     if(Test-Path "$PSScriptRoot\oscdimg.exe" -PathType Leaf) {
         Write-ColorOutput -FC Green "Downloaded!"
-        $create_iso = $true
+        $script:create_iso = $true
     } else {
         Write-ColorOutput -FC Red "Missing downloaded file."
     }
@@ -543,14 +543,14 @@ if (-not(Get-Command "oscdimg.exe" -ErrorAction SilentlyContinue)) {
     # disable creating iso
     $create_iso = $false
 
-    Write-ColorOutput -FC Red -BC Black "Wrining! OSCDimg is not installed!"
+    Write-ColorOutput -FC Red -BC Black "Warnning! OSCDimg is not installed!"
     Write-Output `n
-    Write-ColorOutput -FC Yellow -BC Black "This script uses OSCDImg to create the bootable iso. It is part of Microsofts Windows ADK. Unfortunately it is not shipped with this script. You can download it directly from them or download it from ntdevlabs tiny11builder github repository at https://github.com/ntdevlabs/tiny11builder."
+    Write-ColorOutput -FC Yellow -BC Black "This script uses OSCDImg to create the bootable iso. Unfortunately it is not shipped with this script. You can download it directly from Microsoft as part of thier Windows ADK or let the script download it from ntdevlabs tiny11builder github repository @ https://github.com/ntdevlabs/tiny11builder."
     Write-Output `n
     Write-ColorOutput -FC White "Please select the options below:"
-    Write-ColorOutput -FC White "1. Open Browser to Windows ADK Install Page. (This will exit the script.)"
-    Write-ColorOutput -FC White "2. Download from ntdeblabs tiny11builder Github Repository"
-    Write-ColorOutput -FC White "3. Do not download. I will manually convert it. (Disbles ISO Creation)"
+    Write-ColorOutput -FC White "1. Open Browser to Windows ADK Install Page. (Close the script afterwards.)"
+    Write-ColorOutput -FC White "2. Download from ntdevlabs tiny11builder Github Repository. (Script will download the file and continue.)"
+    Write-ColorOutput -FC White "3. Do not download. Manually convert it later. (Disble ISO Creation at the last step.)"
     $answer_oscdimg = Read-Host -Prompt "`nPlease Enter Option 1~3"
 
     Write-Output "You Selected : $answer_oscdimg"
@@ -582,10 +582,10 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
 {
    Write-ColorOutput -FC Red -BC Black "Warning $dir_root is not empty. Empty this folder to avoid problems."
    Write-Output `n
-   Write-ColorOutput -FC Yellow -BC Black "You can ignore this warning if you will be using the same ISO that has the same number of index in install.wim/esd. If a wim image is still mounted in the working directory it will be un-mounted regardless."
+   Write-ColorOutput -FC Yellow -BC Black "You can ignore this warning if you will be using the same ISO that has the same number of index in install.wim/esd. `nIf an image is still mounted in the working directory it will be un-mounted."
    Write-Output `n
-   Write-ColorOutput -FC Yellow "Please enter `"Nuke`" to Reset the working directory or just Enter to Continue"
-   $reset_root_dir = Read-Host -Prompt "`nPlease enter selected option"
+   Write-ColorOutput -FC Yellow "Please enter `"Nuke`" to Reset the working directory or just Enter to Continue."
+   $reset_root_dir = Read-Host -Prompt "`nPlease enter your selection"
    # Need to Unmount Images Regardless..
    foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
    if ( $reset_root_dir -imatch 'nuke') {
@@ -597,7 +597,8 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
    }
    Show-Slim11Header
 }
-$driveLetter = Read-Host -Prompt "Please enter the `"Drive Letter`" of the mounted Windows 10/11 Image"
+Write-Output "Mount your Windows 11/10 Image ISO and enter the `"Drive Letter`" mount point."
+$driveLetter = Read-Host -Prompt "Please enter Drive Letter"
 Write-Output `n
 
 # Check Paths for Boot and Install WIM
@@ -777,8 +778,16 @@ Write-Output `n
 
 # Consolidate Image(s)
 Write-ColorOutput -FC White -BC Black "Consolidating Image(s) to Install.$image_type.."
-$skipIndex = $false # used to skip the 1st image
-$source_wim = "$dir_root\source\sources\install.wim" # default source wim.
+Write-Output `n
+
+# Delete old install.wim/esd in dir_root
+if (Test-Path -Path "$dir_root\install.$image_type" -PathType Leaf) {
+    Write-ColorOutput -Magenta "Removing old Install Image @ $dir_root\install.$image_type.."
+    Remove-Item "$dir_root\install.$image_type"
+}
+
+$skipIndex = $false # use to skip the 1st image
+$source_wim = "$dir_root\source\sources\install.wim" # default source for wim.
 foreach ( $index in $indices ) {
     # Get Edition Name
     $current_edition_name = "$($raw_index_list.GetValue($index.ToString() - 1).ImageName)"
