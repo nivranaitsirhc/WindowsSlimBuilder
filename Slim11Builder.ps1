@@ -8,6 +8,14 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
  }
 }
 
+# Start Script Transcript
+Start-Transcript -Append $PSScriptRoot\console.log
+$Host.UI.RawUI.WindowTitle = "Slim 11 Builder"
+$Host.UI.RawUI.WindowSize.Height = 80
+$Host.UI.RawUI.WindowSize.Width  = 50
+
+
+
 # Init Configurations
 # -------------------------------------------------------------------------------------
 
@@ -468,7 +476,7 @@ function Get-OSCDIMG_From_Tiny11GithubRepo(){
     try {
         # Get OSCDIMG
         Write-ColorOutput -FC Yellow "Get OSCDIMG from ntdevlabs Github Repository.."
-        Invoke-WebRequest -URI "$URI" -OutFile "$PSCriptRoot\oscdimg.exe"
+        Invoke-WebRequest -URI "$URI" -OutFile "$PSScriptRoot\oscdimg.exe"
         
     }
     catch {
@@ -476,7 +484,7 @@ function Get-OSCDIMG_From_Tiny11GithubRepo(){
         Write-ColorOutput -Red "$PSItem"
         return
     }
-    if(Test-Path "$PSScript\oscdimg.exe" -PathType Leaf) {
+    if(Test-Path "$PSScriptRoot\oscdimg.exe" -PathType Leaf) {
         Write-ColorOutput -FC Green "Downloaded!"
         $create_iso = $true
     } else {
@@ -518,10 +526,6 @@ function Show-Slim11Header{
 # Initialization
 # -------------------------------------------------------------------------------------------------------------------------------
 #
-
-# Start Script Transcript
-Start-Transcript -Append $PSScriptRoot\console.log
-$Host.UI.RawUI.WindowTitle = "Slim 11 Builder"
 
 # Show Welcome Header
 Show-Slim11Header
@@ -578,9 +582,10 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
 {
    Write-ColorOutput -FC Red -BC Black "Warning $dir_root is not empty. Empty this folder to avoid problems."
    Write-Output `n
-   Write-ColorOutput -FC Yellow -BC Black "You can ignore this warning if you will be using the same ISO that has the same number of index in install.wim/esd"
-   Write-ColorOutput -FC Yellow -BC Black "If a wim image is still mounted in the working directory it will be un-mounted regardless."
-   $reset_root_dir = Read-Host -Prompt "`nPlease enter `'Nuke`' to reset the working directory or enter anything to skip"
+   Write-ColorOutput -FC Yellow -BC Black "You can ignore this warning if you will be using the same ISO that has the same number of index in install.wim/esd. If a wim image is still mounted in the working directory it will be un-mounted regardless."
+   Write-Output `n
+   Write-ColorOutput -FC Yellow "Please enter `"Nuke`" to Reset the working directory or just Enter to Continue"
+   $reset_root_dir = Read-Host -Prompt "`nPlease enter selected option"
    # Need to Unmount Images Regardless..
    foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
    if ( $reset_root_dir -imatch 'nuke') {
@@ -696,6 +701,7 @@ foreach ( $selected_index in $indices ) {
 
     # Mount selected index
     Write-ColorOutput -FC Black -BC White "Mounting $current_edition_name.."
+
     mkdir -Path "$dir_scratch\$verified_index" -Force >$null
     # When image type is esd need to export first to wim to enable modifications
     if ( $image_type -eq 'esd' ) {
