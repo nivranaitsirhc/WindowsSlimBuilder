@@ -8,10 +8,60 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
  }
 }
 
-# Debug Parameter
+# Init Configurations
+# -------------------------------------------------------------------------------------
+
+# Debug Parameter (Enable/Disable Debug Printing, Usefull for Printing Installed App Packages)
 $DebugPreference = "SilentlyContinue"      # Disable Debug Messages
 # $DebugPreference = "Continue"               # Enable Debug Messages
 
+# Path to where the final ISO image will be located (default to root of script directory)
+$PathToFinal_ISO_IMAGE = "$PSScriptRoot\Windows_Slim11.iso"
+
+# Working Directory
+# The path used in building the image. You can change this path to wherever you like. (SSD Drive is recommended)
+$dir_root       = "C:\Slim11Builder" 
+# Scratch Directory
+# Path for the image mount-points. (recommended to be inside the working directory to be include at clean-up)
+$dir_scratch    = "$dir_root\scratchdir"
+# source directory
+# Path for the extracted ISO Windows installer. (recommended to be inside the working directory to be include at clean-up)
+$dir_source     = "$dir_root\source"
+
+
+# Removal Configuration Files
+# Configure these files to what you want to remove.
+
+# Remove App Packages List
+$Remove_Packages_ConfigFile                   = "$PSScriptRoot\remove_packages.ini"
+# Remove Provisioned App Packages List
+$Remove_PackagesProvisioned_ConfigFile        = "$PSScriptRoot\remove_packages_provisioned.ini"
+# Remove Directory List
+$Remove_Directories_ConfigFile                = "$PSScriptRoot\remove_directories.ini"
+# Remove File List
+$Remove_Files_ConfigFile                      = "$PSScriptRoot\remove_files.ini"
+
+
+# Constant Variables (Do Not Change these values)
+# Install WIM constant used in varying degrees to handle ESD/WIM image format
+$image_type     = "wim"
+
+# Flag set to include creation of bootable ISO.
+$create_iso     = $true
+
+
+# Add Script Path to Current Environment
+$env:PATH += ";$PSScriptRoot"
+
+# -------------------------------------------------------------------------------------
+# End Init
+
+
+# Function Declarations
+# -------------------------------------------------------------------------------------------------------------------------------
+#
+
+# Displays Colored Text
 function Write-ColorOutput(){
     Param(
         [string]$FC,
@@ -29,6 +79,8 @@ function Write-ColorOutput(){
     # restore the original color
     # $Host.UI.RawUI.ForegroundColor = $_FC
 }
+
+# Copy File With Progress (Console is boring)
 function Copy-FileWithProgress{
     Param(
         [Parameter(Mandatory=$true)]
@@ -48,7 +100,7 @@ function Copy-FileWithProgress{
             $DestinationFile.Write($buff, 0, $count)
             $total += $count
             if ($total % 1mb -eq 0) {
-                Write-Progress -Activity "$Activity" -status "$From -> $To" `
+                Write-Progress -Activity "$Activity" -status "$Source -> $Destination" `
                    -PercentComplete ([long]($total * 100 / $SourceFile.Length))
             }
         } while ($count -gt 0)
@@ -56,10 +108,12 @@ function Copy-FileWithProgress{
     finally {
         $SourceFile.Dispose()
         $DestinationFile.Dispose()
-        Write-Progress -Activity "$Activity" -Status "Ready" -Completed
+        Write-Progress -Activity "$Activity" -Status "Completed" -Completed
+        Write-Output "Done!"
     }
 }
 
+# Copy Directories with Progress (Console is boring)
 # https://stackoverflow.com/questions/13883404/custom-robocopy-progress-bar-in-powershell
 function Copy-DirWithProgress {
     [CmdletBinding()]
@@ -124,11 +178,12 @@ function Copy-DirWithProgress {
         if ($BytesCopied -gt 0) {
            $Percentage = (($BytesCopied/$BytesTotal)*100)
         }
-        Write-Progress -Activity $Activity -Status ("Copied {0} of {1} files; Copied {2} of {3} bytes" -f $CopiedFileCount, $TotalFileCount, $BytesCopied, $BytesTotal) -PercentComplete $Percentage
+        Write-Progress -Activity "$Activity" -Status ("Copied {0} of {1} files; Copied {2} of {3} bytes" -f $CopiedFileCount, $TotalFileCount, $BytesCopied, $BytesTotal) -PercentComplete $Percentage
     }
     #endregion Progress loop
 
-    Write-Progress -Activity $Activity -Status 'Done' -Completed
+    Write-Progress -Activity "$Activity" -Status 'Done' -Completed
+    Write-Output "Done!"
 
     #region Function output
     [PSCustomObject]@{
@@ -138,7 +193,7 @@ function Copy-DirWithProgress {
     #endregion Function output
 }
 
-
+# Remove Provisioned Packages from File List
 function Remove-ProvisionedAppPackagesFromFileListList{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to Working Directory")]
@@ -147,8 +202,8 @@ function Remove-ProvisionedAppPackagesFromFileListList{
         [String[]]$Config_File
     )
     if ( -not ( Test-Path -Path "$Config_File" ) ) {
-        Write-ColorOutput -FC Red "Remove-ProvisionedAppPackages: Config File does not exist"
-        Exit-Script
+        Write-ColorOutput -FC Red "Remove-ProvisionedAppPackages: Config File does not exist. Returning.."
+        Return
     }
     Write-ColorOutput -FC Yellow "Remove-ProvisionedAppPackages: Removing Provisioned Packages..`n"
     $appxlist = dism /image:"$Working_Directory" /Get-ProvisionedAppxPackages | Select-String -Pattern 'PackageName : ' -CaseSensitive -SimpleMatch
@@ -168,6 +223,7 @@ function Remove-ProvisionedAppPackagesFromFileListList{
     Write-ColorOutput -FC Green "Remove-ProvisionedAppPackages: Complete!`n"
 }
 
+# Remove Packages from File List
 function Remove-AppPackagesFromFileListList{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to Working Directory")]
@@ -176,8 +232,8 @@ function Remove-AppPackagesFromFileListList{
         [String[]]$Config_File
     )
     if ( -not ( Test-Path -Path "$Config_File" ) ) {
-        Write-ColorOutput -FC Red "Remove-AppPackages: Config File does not exist"
-        Exit-Script
+        Write-ColorOutput -FC Red "Remove-AppPackages: Config File does not exist. Returning.."
+        Return
     }
     Write-ColorOutput -FC Yellow "Remove-AppPackages: Removing App Packages..`n"
     $packagelist = dism /image:"$Working_Directory" /Get-Packages /Format:List | Select-String -Pattern 'Package Identity : ' -CaseSensitive -SimpleMatch
@@ -197,6 +253,7 @@ function Remove-AppPackagesFromFileListList{
     Write-ColorOutput -FC Green "Remove-AppPackagesFromFileList: Complete!`n"
 }
 
+# Remove Directory
 function Remove-Directories{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to Working Directory")]
@@ -204,6 +261,10 @@ function Remove-Directories{
         [Parameter(Mandatory=$true,HelpMessage="Complete path to app list file")]
         [String[]]$Config_File
     )
+    if ( -not ( Test-Path -Path "$Config_File" ) ) {
+        Write-ColorOutput -FC Red "Remove-Directories: Config File does not exist. Returning.."
+        Return
+    }
     Write-Output "Remove-Directories: Removing Directory..`n"
     foreach ( $app_dir in [System.IO.File]::ReadLines("$Config_File")) {
         if ( Test-Path -Path "$Working_Directory\$app_dir" -PathType Leaf ) {
@@ -219,6 +280,7 @@ function Remove-Directories{
 
 }
 
+# Remove File
 function Remove-File{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to Working Directory")]
@@ -226,6 +288,10 @@ function Remove-File{
         [Parameter(Mandatory=$true,HelpMessage="Complete path to app list file")]
         [String[]]$Config_File
     )
+    if ( -not ( Test-Path -Path "$Config_File" ) ) {
+        Write-ColorOutput -FC Red "Remove-File: Config File does not exist. Returning.."
+        Return
+    }
     Write-Output "Remove-File: Removing Files..`n"
     foreach ( $app_file in [System.IO.File]::ReadLines("$Config_File")) {
         if ( Test-Path -Path "$Working_Directory\$app_file" -PathType Leaf ) {
@@ -240,151 +306,199 @@ function Remove-File{
     Write-ColorOutput -FC Green "Remove-File: Complete!`n"
 }
 
-function Convert-ESD2WIM{
-    Param(
-        [Parameter(Mandatory=$true,HelpMessage="Complete path to install.esd file")]
-        [String[]]$Source_File,
-        [Parameter(Mandatory=$true,HelpMessage="Complate path to install.wim destination file")]
-        [String[]]$Destination_File,
-        [Parameter(Mandatory=$true,HelpMessage="Index of target image to extract")]
-        [Int[]]$Index
-    )
-    if ( -not ( Test-Path -Path "$Source_File" ) ) {
-        Write-Output "Convert-ESD2WIM: Source File does not exist"
-        Exit-Script
-    }
-    dism /Export-image /SourceImageFile:$Source_File /SourceIndex:$Index /DestinationImageFile:$Destination_File /Compress:max /CheckIntegrity
-}
-
-function Set-BypassSystemRequirments{
-    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV1 in Default"
-    Reg add "HKLM\zDEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f 
-    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV2 in Default"
-    Reg add "HKLM\zDEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f 
-    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV1 in USER"
-    Reg add "HKLM\zNTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f 
-    Write-Output "Disabling - UnsupportedHardwareNotificationCache SV2 in USER"
-    Reg add "HKLM\zNTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f 
-    Write-Output "Enabling - BypassCPUCheck in System"
-    Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassCPUCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling - BypassRAMCheck in System"
-    Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling - BypassSecureBootCheck in System"
-    Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling - BypassStorageCheck in System"
-    Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling - BypassTPMCheck in System"
-    Reg add "HKLM\zSYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d "1" /f 
-    Write-Output "Enabling - AllowUpgradesWithUnsupportedTPMOrCPU in System"
-    Reg add "HKLM\zSYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d "1" /f 
-}
-
+# General SubFunction to Mount and Remount Registry
 function Mount-Registry{
     Param(
         # Parameter help description
         [String]$Working_Directory=''
     )
     if ($Working_Directory -ne '') {
-        Write-ColorOutput -FC Yellow "Loading Registry..."
+        Write-ColorOutput -FC Yellow "Mounting Registry..."
         Write-Output "Loading - COMPONENTS"
-        Reg load HKLM\zCOMPONENTS   "$Working_Directory\Windows\System32\config\COMPONENTS" 
+        Reg load HKLM\slim11COMPONENTS   "$Working_Directory\Windows\System32\config\COMPONENTS" 
         Write-Output "Loading - DEFAULT" 
-        Reg load HKLM\zDEFAULT      "$Working_Directory\Windows\System32\config\default"    
+        Reg load HKLM\slim11DEFAULT      "$Working_Directory\Windows\System32\config\default"    
         Write-Output "Loading - SOFTWARE"
-        Reg load HKLM\zSOFTWARE     "$Working_Directory\Windows\System32\config\SOFTWARE"   
+        Reg load HKLM\slim11SOFTWARE     "$Working_Directory\Windows\System32\config\SOFTWARE"   
         Write-Output "Loading - SYSTEM"
-        Reg load HKLM\zSYSTEM       "$Working_Directory\Windows\System32\config\SYSTEM"     
+        Reg load HKLM\slim11SYSTEM       "$Working_Directory\Windows\System32\config\SYSTEM"     
         Write-Output "Loading - USER"
-        Reg load HKLM\zNTUSER       "$Working_Directory\Users\Default\ntuser.dat"           
+        Reg load HKLM\slim11NTUSER       "$Working_Directory\Users\Default\ntuser.dat"           
     } else {
-        Write-ColorOutput -FC Yellow "Unloading Registry..."
+        Write-ColorOutput -FC Yellow "Un-Mounting Registry..."
         Write-Output "Unloading - COMPONENTS"
-        Reg unload HKLM\zCOMPONENTS
+        Reg unload HKLM\slim11COMPONENTS
         Write-Output "Unloading - DEFAULT"
-        Reg unload HKLM\zDEFAULT
+        Reg unload HKLM\slim11DEFAULT
         Write-Output "Unloading - SOFTWARE"
-        Reg unload HKLM\zSOFTWARE
+        Reg unload HKLM\slim11SOFTWARE
         Write-Output "Unloading - SYSTEM"
-        Reg unload HKLM\zSYSTEM
+        Reg unload HKLM\slim11SYSTEM
         Write-Output "Unloading - USER"
-        Reg unload HKLM\zNTUSER
+        Reg unload HKLM\slim11NTUSER
     }
+    #
+    Write-Output `n
 }
 
+# General SubFunction to Bypass Windows 11 Requirements; This can be impletemented in OOBE, since were already here why not implement it already.
+function Set-BypassSystemRequirments{
+    Write-Output "Disable - UnsupportedHardwareNotificationCache SV1 in Default"
+    Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f >$null 
+    Write-Output "Disable - UnsupportedHardwareNotificationCache SV2 in Default"
+    Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f >$null
+    Write-Output "Disable - UnsupportedHardwareNotificationCache SV1 in USER"
+    Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f >$null
+    Write-Output "Disable - UnsupportedHardwareNotificationCache SV2 in USER"
+    Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f >$null
+    Write-Output "Enable  - BypassCPUCheck in System"
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassCPUCheck" /t REG_DWORD /d "1" /f >$null
+    Write-Output "Enable  - BypassRAMCheck in System"
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d "1" /f >$null
+    Write-Output "Enable  - BypassSecureBootCheck in System"
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d "1" /f >$null 
+    Write-Output "Enable  - BypassStorageCheck in System"
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d "1" /f >$null
+    Write-Output "Enable  - BypassTPMCheck in System"
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d "1" /f >$null
+    Write-Output "Enable  - AllowUpgradesWithUnsupportedTPMOrCPU in System"
+    Reg add "HKLM\slim11SYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d "1" /f >$null
+    # 
+    Write-Output `n
+}
+
+# Function on Patching the Registry of Boot WIM
 function Update-RegistryOnBootWIM{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to the mounted boot.wim")]
         [String[]]$Working_Directory
     )
+    # Mount Registry
     Mount-Registry -Working_Directory $Working_Directory
+    # Bypass System Requirements
     Write-ColorOutput -FC Yellow "Bypassing system requirements(on the setup image):"
     Set-BypassSystemRequirments
+    # UnMount Registry
     Mount-Registry
-    Write-ColorOutput -FC green  "Tweaking complete!`n"
+
+    # Completed
+    Write-ColorOutput -FC green  "Done Patching Registry!"
+    Write-Output `n
 }
 
+# Function on Patching the Registry of Install WIM
 function Update-RegistryOnInstallWIM{
     Param(
         [Parameter(Mandatory=$true,HelpMessage="Complete path to the mounted install.wim")]
         [String[]]$Working_Directory
     )
-
+    # Mount Registry
     Mount-Registry -Working_Directory $Working_Directory
+    
+    # Bypass System Requirements
     Write-ColorOutput -FC Yellow "Bypassing system requirements(on the system image):"
     Set-BypassSystemRequirments
 
+    # Disable Dynamic Content
     Write-ColorOutput -FC Yellow "Disabling Dynamic Content in Start-Menu:"
-    Reg add "HKLM\zSOFTWARE\Policies\Microsoft\Windows\Windows Search" /v  "EnableDynamicContentInWSB" /t REG_DWORD /d "0" /f 
+    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\Windows Search" /v  "EnableDynamicContentInWSB" /t REG_DWORD /d "0" /f >$null
+    Write-Output `n
 
+    # Disable Teams (requires elevated permission)
     Write-ColorOutput -FC Yellow "Disabling Teams:"
-    Reg add "HKLM\zSOFTWARE\Microsoft\Windows\CurrentVersion\Communications" /v "ConfigureChatAutoInstall" /t REG_DWORD /d "0" /f 
-    
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\Communications" /v "ConfigureChatAutoInstall" /t REG_DWORD /d "0" /f >$null
+    Write-Output `n
+
+    # Disable Sponsored Apps
     Write-ColorOutput -FC Yellow "Disabling Sponsored Apps:"
-    Write-Output "Processing OemPreInstalledAppsEnabled.."
-    Reg add "HKLM\zNTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "OemPreInstalledAppsEnabled" /t REG_DWORD /d "0" /f 
-    Write-Output "Processing PreInstalledAppsEnabled.."
-    Reg add "HKLM\zNTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "PreInstalledAppsEnabled" /t REG_DWORD /d "0" /f  
-    Write-Output "Processing SilentInstalledAppsEnabled.."
-    Reg add "HKLM\zNTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SilentInstalledAppsEnabled" /t REG_DWORD /d "0" /f  
-    Write-Output "Processing DisableWindowsConsumerFeatures.."
-    Reg add "HKLM\zSOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d "1" /f  
-    Write-Output "Processing ConfigureStartPins.."
-    Reg add "HKLM\zSOFTWARE\Microsoft\PolicyManager\current\device\Start" /v "ConfigureStartPins" /t REG_SZ /d "{`"pinnedList`": [{}]}" /f  
-    
+    Write-Output "Disable - OemPreInstalledAppsEnabled.."
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "OemPreInstalledAppsEnabled" /t REG_DWORD /d "0" /f >$null
+    Write-Output "Disable - PreInstalledAppsEnabled.."
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "PreInstalledAppsEnabled" /t REG_DWORD /d "0" /f >$null
+    Write-Output "Disable - SilentInstalledAppsEnabled.."
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SilentInstalledAppsEnabled" /t REG_DWORD /d "0" /f >$null
+    Write-Output "Enable  - DisableWindowsConsumerFeatures.."
+    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d "1" /f >$null
+    Write-Output "Disable - ConfigureStartPins.."
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\PolicyManager\current\device\Start" /v "ConfigureStartPins" /t REG_SZ /d "{`"pinnedList`": [{}]}" /f >$null
+    Write-Output `n
+
     Write-ColorOutput -FC Yellow "Enabling Local Accounts on OOBE:"
-    Write-Output "Processing BypassNRO.."
-    Reg add "HKLM\zSOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v "BypassNRO" /t REG_DWORD /d "1" /f  
-    Write-Output "Inserting autounattend.xml.."
+    Write-Output "Enable  -  BypassNRO.."
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v "BypassNRO" /t REG_DWORD /d "1" /f >$null
+    Write-Output "Inserting autounattend.xml to Sysprep"
     Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml" -Destination "$Working_Directory\Windows\System32\Sysprep\autounattend.xml" -Activity "Inserting autounattend.xml"
-    
+    Write-Output `n
+
     Write-ColorOutput -FC Yellow "Disabling Reserved Storage:"
-    Write-Output "Processing ShippedWithReserves.."
-    Reg add "HKLM\zSOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager" /v "ShippedWithReserves" /t REG_DWORD /d "0" /f  
+    Write-Output "Disable -  ShippedWithReserves.."
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager" /v "ShippedWithReserves" /t REG_DWORD /d "0" /f >$null
+    Write-Output `n
+
+    Write-ColorOutput -FC Yellow "Configuring Chat & TaskbarMn icon:"
+    Write-Output "Disable -  ChatIcon.."
+    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\Windows Chat" /v "ChatIcon" /t REG_DWORD /d "3" /f >$null
+    Write-Output "Disable -  TaskbarMn.."
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d "0" /f >$null
+    Write-Output `n
     
-    Write-ColorOutput -FC Yellow "Disabling Chat icon:"
-    Write-Output "Processing ChatIcon.."
-    Reg add "HKLM\zSOFTWARE\Policies\Microsoft\Windows\Windows Chat" /v "ChatIcon" /t REG_DWORD /d "3" /f 
-    Write-Output "Processing TaskbarMn.."
-    Reg add "HKLM\zNTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d "0" /f 
+    Write-ColorOutput -FC Yellow "Removing One-Drive Setup.."
+    Reg delete "HKU\mount\Software\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f >$null
+    Write-Output `n
 
     # to-do: This should be in tandem with deletion of the directories
     Write-ColorOutput -FC Yellow "Removing Microsoft Edge Remnants:"
-    Reg delete "HKLM\zSOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge" /f
-    Reg delete "HKLM\zSOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge Update" /f
+    Reg delete "HKLM\slim11SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge" /f >$null
+    Reg delete "HKLM\slim11SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge Update" /f >$null
+    Write-Output `n
 
-    Write-ColorOutput -FC Green "Tweaking complete!`n"
-
+    # Un-Mount Registry
     Mount-Registry
+
+    Write-ColorOutput -FC Green "Done Patching Registry!"
+    Write-Output `n
+}
+
+function Update-EnvPath() {
+    $Env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")  + ";$PSScriptRoot"
+}
+
+function Get-OSCDIMG_From_Tiny11GithubRepo(){
+    $URI = "https://github.com/ntdevlabs/tiny11builder/raw/main/oscdimg.exe"
+    try {
+        # Get OSCDIMG
+        Write-ColorOutput -FC Yellow "Get OSCDIMG from ntdevlabs Github Repository.."
+        Invoke-WebRequest -URI "$URI" -OutFile "$PSCriptRoot\oscdimg.exe"
+        
+    }
+    catch {
+        Write-ColorOutput -Red "Failed to download $URI"
+        Write-ColorOutput -Red "$PSItem"
+        return
+    }
+    if(Test-Path "$PSScript\oscdimg.exe" -PathType Leaf) {
+        Write-ColorOutput -FC Green "Downloaded!"
+        $create_iso = $true
+    } else {
+        Write-ColorOutput -FC Red "Missing downloaded file."
+    }
 }
 
 function Exit-Script{
+    Param(
+        [string]$SkipPause=$false
+    )
     Write-ColorOutput -FC White "`nGracefully Exiting.."
     Stop-Transcript
-    Read-Host -Prompt "Please enter to close the terminal"
+    
+    if($SkipPause -ne $true) {
+        Read-Host -Prompt "Please enter to close the terminal"
+    }
     exit
 }
 
 function Show-Slim11Header{
+    Clear-Host
     Write-Output `n`n
     Write-ColorOutput -FC Green -BC Black "Slim 11 Image Builder"
     Write-Ascii -InputObject 'Slim 11 Builder'
@@ -395,55 +509,94 @@ function Show-Slim11Header{
     Write-Output `n`n
 }
 
-# Start Script
+#
+# End Function Declarations
+# -------------------------------------------------------------------------------------------------------------------------------
+
+
+
+# Initialization
+# -------------------------------------------------------------------------------------------------------------------------------
+#
+
+# Start Script Transcript
 Start-Transcript -Append $PSScriptRoot\console.log
-$Host.UI.RawUI.WindowTitle = "Slim11Builder"
+$Host.UI.RawUI.WindowTitle = "Slim 11 Builder"
+
+# Show Welcome Header
+Show-Slim11Header
 
 # Init Modules
+# WriteAscii - Used for Creating the Graphic Console Art
 if(-not (Get-Module WriteAscii -ListAvailable)){
     Install-Module WriteAscii -Scope CurrentUser -Force
 }
 
-# Reset Console
-Clear-Host
 
-# Init Configurations
-$image_type   = "wim"
-# root working directory
-# Warning! Do not remove the keyword Slim11Builder in the root directory path.
-$dir_root       = "C:\Slim11Builder" 
-# scratch directory
-$dir_scratch    = "$dir_root\scratchdir"
-# source directory
-$dir_source     = "$dir_root\source"
+# Check for Third-Party Non-Included Executables
+# OSCDIMG 
+if (-not(Get-Command "oscdimg.exe" -ErrorAction SilentlyContinue)) {
+    # disable creating iso
+    $create_iso = $false
 
-# Welcome
-Show-Slim11Header
+    Write-ColorOutput -FC Red -BC Black "Wrining! OSCDimg is not installed!"
+    Write-Output `n
+    Write-ColorOutput -FC Yellow -BC Black "This script uses OSCDImg to create the bootable iso. It is part of Microsofts Windows ADK. Unfortunately it is not shipped with this script. You can download it directly from them or download it from ntdevlabs tiny11builder github repository at https://github.com/ntdevlabs/tiny11builder."
+    Write-Output `n
+    Write-ColorOutput -FC White "Please select the options below:"
+    Write-ColorOutput -FC White "1. Open Browser to Windows ADK Install Page. (This will exit the script.)"
+    Write-ColorOutput -FC White "2. Download from ntdeblabs tiny11builder Github Repository"
+    Write-ColorOutput -FC White "3. Do not download. I will manually convert it. (Disbles ISO Creation)"
+    $answer_oscdimg = Read-Host -Prompt "`nPlease Enter Option 1~3"
 
-# Create working directory
+    Write-Output "You Selected : $answer_oscdimg"
+
+    switch ($answer_oscdimg) {
+        1 {
+            Write-ColorOutput -FC Green "Opening link... https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install"
+            Start-Process "https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install"
+            Exit-Script
+        }
+        2 {
+            Get-OSCDIMG_From_Tiny11GithubRepo
+        }
+        3 {
+            Write-ColorOutput -FC Yellow "Disabled ISO Creation. Clean-Up will also be disabled."
+            Write-ColorOutput -FC Yellow "Please output will be at $dir_source."
+        }
+    }
+    pause
+    Show-Slim11Header
+}
+
+
+# Create the working directory
 mkdir -Path "$dir_root" -Force >$null
 
+# Check working directory for remnants
 if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-Object).Count -eq 0))
 {
-   Write-ColorOutput -FC Red "Warning $dir_root is not empty. It is advisable to empty this folder to avoid problems."
-   Write-ColorOutput -FC Red "If a Windows Image is still mounted here it will take longer to reset."
+   Write-ColorOutput -FC Red -BC Black "Warning $dir_root is not empty. Empty this folder to avoid problems."
+   Write-Output `n
+   Write-ColorOutput -FC Yellow -BC Black "You can ignore this warning if you will be using the same ISO that has the same number of index in install.wim/esd"
+   Write-ColorOutput -FC Yellow -BC Black "If a wim image is still mounted in the working directory it will be un-mounted regardless."
    $reset_root_dir = Read-Host -Prompt "`nPlease enter `'Nuke`' to reset the working directory or enter anything to skip"
    # Need to Unmount Images Regardless..
-   foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output: "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
+   foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
    if ( $reset_root_dir -imatch 'nuke') {
         Write-Output "Clearing Working Directory.."
         # Take Ownership of $dir_scratch and reset all permissions.
         takeown /F "$dir_scratch" >$null
-        icacls "$dir_scratch\*" /Q /C /T /reset
+        icacls "$dir_scratch\*" /Q /C /T /reset >$null
         Remove-Item -Recurse -Force -Path "$dir_root" >$null
    }
-   Clear-Host
    Show-Slim11Header
 }
-
-$driveLetter = Read-Host -Prompt "Please enter the `"Drive Letter`" for the mounted Windows 11 Image"
+$driveLetter = Read-Host -Prompt "Please enter the `"Drive Letter`" of the mounted Windows 10/11 Image"
 Write-Output `n
 
+# Check Paths for Boot and Install WIM
+# Boot Image Check
 Write-ColorOutput -FC Yellow 'Checking Paths:'
 if ( -not ( Test-Path -Path $driveLetter":\sources\boot.wim" -PathType Leaf ) ) {
     Write-ColorOutput -FC Red (
@@ -452,8 +605,8 @@ if ( -not ( Test-Path -Path $driveLetter":\sources\boot.wim" -PathType Leaf ) ) 
     )
 	Exit-Script
 }
-Write-ColorOutput -FC Green "Boot Image Found!"
-
+Write-ColorOutput -FC Green "- Boot Image Found!"
+# Install Image Check
 if ( -not ( Test-Path -Path $driveLetter":\sources\install.wim" -PathType Leaf ) ) {
     if ( -not ( Test-Path -Path $driveLetter":\sources\install.esd" -PathType Leaf ) ) {
         Write-ColorOutput -FC Red (
@@ -464,34 +617,34 @@ if ( -not ( Test-Path -Path $driveLetter":\sources\install.wim" -PathType Leaf )
     }
     $image_type = "esd"
 }
-Write-ColorOutput -FC Green "Install Image Found!"
+Write-ColorOutput -FC Green "- Install Image Found!"
 Write-Output `n
+# End Check Paths
 
-# Show Warning How ESD is process.
+# Show ESD Warning
 if ($image_type -eq "esd") {
     Write-ColorOutput -FC Magenta -BC Black "ESD Format detected!"
     Write-ColorOutput -FC Red -BC Black "Warning! Since ESD's are read-only. A few steps with a lot of overhead are necessary.`nThese are CPU/Memory intensive and may lag your computer specially on low-end devices."
+    Write-Output `n
 }
 
 # Copy Windwos image to source directory
-Write-Output "Copying Windows image... (This may take a while.)"
-# xcopy.exe /E /I /H /R /Y /J $driveLetter":" $dir_source 
+Write-Output "Copying Windows image... (This may take a while.)" 
 Copy-DirWithProgress -Source $driveLetter":" -Destination "$dir_source" -Activity "Copying Windows Image to $dir_source"
-# Start-Sleep -Seconds 3
+Write-Output `n
 
+
+# Get Image Information from Source
 Write-Output "Getting Image information:"
-# Get the Whole WIM Index
-# $raw_index_list = dism /Get-WimInfo /wimfile:$dir_source\sources\install.$image_type
 $raw_index_list = Get-WindowsImage -ImagePath "$dir_source\sources\install.$image_type"
 # Generate the index list
-# $index_list = $raw_index_list | Select-String -Pattern 'Index : ' -SimpleMatch
-# $index_list = $index_list -split 'Index : ' | Where-Object {$_}
 $index_list = $raw_index_list.ForEach('ImageIndex')
 
-
+# Show the Image list at install.wim/esd and Select the desired Editions
 Write-Output ($raw_index_list|Format-List|Out-String)
-Write-ColorOutput -FC Yellow "Please select the index number of the edition you want to convert or just type `"all`""
-Write-ColorOutput -FC Yellow "e.g. 1, 2, 4`ne.g. all"
+Write-ColorOutput -FC Yellow "Please select the index number of the edition you want to process or just type `"all`" to select all available editions"
+Write-ColorOutput -FC Yellow "e.g. 1, 2, 4...`ne.g. all"
+Write-Output `n
 Write-ColorOutput -FC Red "Note: Invalid inputs are currently not validated. Please avoid erroneous input."
 $indices = Read-Host -Prompt "`nPlease enter the image index number"
 if ( $indices -eq '' ) {
@@ -500,179 +653,236 @@ if ( $indices -eq '' ) {
 }
 if ( $indices -imatch 'all' ) { $indices = $index_list;Write-ColorOutput -FC Magenta "You Just Selected `"All`" depending on your device and the number of images, The whole process will take a lot of time." }
 
-# Cleanup selection
+# Format the Index/Indices and show formated
 $indices = $indices -replace '\n','' -split ',' | Where-Object {$_}
-Write-ColorOutput -FC Green "`nSelected Index/Indices : $indices`n"
+Write-ColorOutput -FC Green "`nSelected Index/Indices : $indices"
+Write-Output `n
 
 
 # Remove install.wim/install.esd & boot.wim readonly flag
-Write-Output "Removing Read-Only flags for images.."
+Write-Output "Removing Read-Only flags for the images.."
 Set-ItemProperty -Path "$dir_source\sources\install.$image_type" -Name IsReadOnly -Value $false
 Set-ItemProperty -Path "$dir_source\sources\boot.wim" -Name IsReadOnly -Value $false
 Write-Output `n
 
+#
+# End Initialization
+# -------------------------------------------------------------------------------------------------------------------------------
+
+
+# Main Script
+# -------------------------------------------------------------------------------------------------------------------------------
+#
+
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Processing Install Images:"
 Write-Output `n
+# Valid index flag
+$valid_selection=$false
+# Process Selected Index
 foreach ( $selected_index in $indices ) {
+    # Verify that the Index is 
     $verified_index = $index_list | Select-String -Pattern "\b$selected_index\b" -CaseSensitive
 
-    if ( $verified_index ) {
-        Write-ColorOutput -FC Black -BC White "Mounting $($raw_index_list.GetValue($verified_index.ToString() - 1).ImageName).."
-        mkdir -Path "$dir_scratch\$verified_index" -Force >$null
-        if ( $image_type -eq 'esd' ) {
-            # Covert to WIM because ESD is Read-Only
-            Write-ColorOutput -FC Magenta "Extracting WIM from ESD.."
-            # Extract to $dir_root
-            if ( Test-Path -Path "$dir_root\$verified_index-install.wim" -PathType Leaf ) { Remove-Item -Path "$dir_root\$verified_index-install.wim" -Force }
-            dism /Export-Image /SourceImageFile:$dir_source\sources\install.esd /SourceIndex:$verified_index /DestinationImageFile:$dir_root\$verified_index-install.wim /Compress:max /CheckIntegrity
-            if ($LASTEXITCODE -ne 0) {Exit-Script}
-            # Mount to dir_scratch
-            dism /Mount-Image /ImageFile:$dir_root\$verified_index-install.wim /Index:1 /MountDir:$dir_scratch\$verified_index
-            if ($LASTEXITCODE -ne 0) {Exit-Script}
-        } else {
-            # Mount to dir_scratch
-            dism /Mount-Image /ImageFile:$dir_source\sources\install.wim /Index:$verified_index /MountDir:$dir_scratch\$verified_index
-            if ($LASTEXITCODE -ne 0 -And $LASTEXITCODE -ne -1052638937) {Write-Output "$LASTEXITCODE";Exit-Script}
-        }
-        Write-ColorOutput -FC Green "Mounting Complete!`n"
-
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Removing Provisioned Packages.."
-        Remove-ProvisionedAppPackagesFromFileListList -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_packages_provisioned.txt"
-        #Start-Sleep -Seconds 1
-        
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Removing Packages.."
-        Remove-AppPackagesFromFileListList -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_packages.txt"
-        #Start-Sleep -Seconds 1
-
-        
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Removing Applicaiton Directories.."
-        Remove-Directories -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appdirectories.txt"
-        #Start-Sleep -Seconds 1
-
-        
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Removing Applicaiton Files.."
-        Remove-File -Working_Directory "$dir_scratch\$verified_index" -Config_File "$PSScriptRoot\remove_appfiles.txt"
-        #Start-Sleep -Seconds 1
-
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Aplying Registry Configs.."
-        Update-RegistryOnInstallWIM -Working_Directory "$dir_scratch\$verified_index"
-        #Start-Sleep -Seconds 1
-
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Cleaning Image..."
-        dism /image:"$dir_scratch\$verified_index" /Cleanup-Image /StartComponentCleanup /ResetBase
-
-        Write-Output `n
-        Write-ColorOutput -FC Black -BC White "Unmounting Image & Commiting Changes..."
-        dism /unmount-image /mountdir:"$dir_scratch\$verified_index" /commit
-
-        # Write-Output `n
-        # Write-ColorOutput -FC Black -BC White "Exporting Image..."
-        # if ( $image_type -eq 'esd' ) {
-        #     Write-Output "Converting Image WIM back to ESD.."
-        #     dism /Export-Image /SourceImageFile:$dir_root\$verified_index-install.wim /SourceIndex:1 /DestinationImageFile:$dir_root\$verified_index-install.esd /compress:recovery
-        # } else {
-        #     Write-Output "Extracting Image from Source Install.wim to ESD.."
-        #     dism /Export-Image /SourceImageFile:$dir_source\sources\install.wim /SourceIndex:$verified_index /DestinationImageFile:$dir_root\$verified_index-install.esd /compress:recovery
-        # }
-
-        
-        Write-Output `n
-        Write-ColorOutput -FC Green "Completed for Index:$verified_index!"
-        Write-Output `n
+    if ($verified_index) {
+        # set true
+        $valid_selection=$true
+    } else {
+        # skip this index
+        continue
     }
-}
-Write-ColorOutput -FC Green "Done Patching Install Image`n"
+    # Get Edition Name
+    $current_edition_name = "$($raw_index_list.GetValue($verified_index.ToString() - 1).ImageName)"
 
-
-Write-ColorOutput -FC White -BC Black "Consolidating Images into one Image File:"
-# Merge All Images to the First Image
-$skipIndex = $false
-$source_wim = "$dir_root\source\sources\install.wim"
-foreach ( $index in $indices ) {
-    # If Image is ESD the files are in root_dir with format $index-install.wim
-    # If Image is WIM the files are in root_dir\source\sources\install.wim
-    # For ESD, convert the 1st index to ESD and export the rest of wim to 1st
-    # For WIM, export the 1st index to ESD and export the rest of wim to 1st
-
+    # Mount selected index
+    Write-ColorOutput -FC Black -BC White "Mounting $current_edition_name.."
+    mkdir -Path "$dir_scratch\$verified_index" -Force >$null
+    # When image type is esd need to export first to wim to enable modifications
     if ( $image_type -eq 'esd' ) {
+        # Covert to WIM because ESD's are Read-Only
+        Write-ColorOutput -FC Magenta "Extracting WIM from ESD.."
+        
+        # Extract to $dir_root
+        if ( Test-Path -Path "$dir_root\$verified_index-install.wim" -PathType Leaf ) { Remove-Item -Path "$dir_root\$verified_index-install.wim" -Force }
+        dism /Export-Image /SourceImageFile:$dir_source\sources\install.esd /SourceIndex:$verified_index /DestinationImageFile:$dir_root\$verified_index-install.wim /Compress:max /CheckIntegrity
+        if ($LASTEXITCODE -ne 0) {Exit-Script}
+        
+        # Mount to dir_scratch at index no. from extracted index-install.wim
+        dism /Mount-Image /ImageFile:$dir_root\$verified_index-install.wim /Index:1 /MountDir:$dir_scratch\$verified_index
+        if ($LASTEXITCODE -ne 0) {Exit-Script}
+    } else {
+        # Mount to dir_scratch at index no. from souce install.wim
+        dism /Mount-Image /ImageFile:$dir_source\sources\install.wim /Index:$verified_index /MountDir:$dir_scratch\$verified_index
+        if ($LASTEXITCODE -ne 0 -And $LASTEXITCODE -ne -1052638937) {Write-Output "$LASTEXITCODE";Exit-Script}
+    }
+    Write-ColorOutput -FC Green "Mounting Complete!"
+    Write-Output `n
+
+    # Remove Provisioned Packages
+    Write-ColorOutput -FC Black -BC White "Removing Provisioned Packages.."
+    Remove-ProvisionedAppPackagesFromFileListList -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_PackagesProvisioned_ConfigFile"
+    Write-Output `n
+    
+    # Remove Packages
+    Write-ColorOutput -FC Black -BC White "Removing Packages.."
+    Remove-AppPackagesFromFileListList -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_Packages_ConfigFile"
+    Write-Output `n
+
+    # Remove Directories
+    Write-ColorOutput -FC Black -BC White "Removing Directories from Lists.."
+    Remove-Directories -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_Directories_ConfigFile"
+    Write-Output `n
+
+    # Remove Files
+    Write-ColorOutput -FC Black -BC White "Removing Files from Lists.."
+    Remove-File -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_Files_ConfigFile"
+    Write-Output `n
+
+    # Apply Registry Configurations
+    Write-ColorOutput -FC Black -BC White "Applying Registry Configs.."
+    Update-RegistryOnInstallWIM -Working_Directory "$dir_scratch\$verified_index"
+    Write-Output `n
+
+    # Image - Cleanup
+    Write-ColorOutput -FC Black -BC White "Cleaning Image..."
+    dism /image:"$dir_scratch\$verified_index" /Cleanup-Image /StartComponentCleanup /ResetBase
+    Write-Output `n
+
+    # Image - Save and Un-mount
+    Write-ColorOutput -FC Black -BC White "Commiting Changes & Un-Mounting..."
+    dism /unmount-image /mountdir:"$dir_scratch\$verified_index" /commit
+    Write-Output `n
+    
+    Write-Output `n
+    Write-ColorOutput -FC Green -BC Black "Done Processing $current_edition_name!"
+    Write-Output `n
+}
+
+# Check for valid selection
+if (-not($valid_selection)){
+    # Exit the process because no selected index were valid
+    Write-ColorOutput -FC Red "Selected $indices did not match the valid index list."
+    Exit-Script
+}
+
+Write-ColorOutput -FC Green "Done Patching Install Image"
+Write-Output `n
+
+
+# Consolidate Image(s)
+Write-ColorOutput -FC White -BC Black "Consolidating Image(s) to Install.$image_type.."
+$skipIndex = $false # used to skip the 1st image
+$source_wim = "$dir_root\source\sources\install.wim" # default source wim.
+foreach ( $index in $indices ) {
+    # Get Edition Name
+    $current_edition_name = "$($raw_index_list.GetValue($index.ToString() - 1).ImageName)"
+    Write-ColorOutput -FC Yellow "Merging $current_edition_name to install.$image_type.."
+
+    # For WIM, we directly modified the install.wim at source. We just need to extract from install.wim to new install wim.
+    # for ESD, we extracted to each individual wim at working directory We need to convert the 1st image to install.esd and add others if any to this new install.esd
+    if ( $image_type -eq 'esd' ) {
+        # update source wim to current index
         $source_wim = "$dir_root\$index-install.wim"
-        Write-Output `n
-        Write-ColorOutput -FC Yellow "Merging $source_wim to install.esd.."
         if ( $skipIndex -eq $false ) {
             $skipIndex = $true
-            # convert to ESD
+            # convert to 1st image to install.esd
             dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity    
             continue
         } else {
-            # add to ESD
+            # add to new install.esd
             dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:1 /DestinationImageFile:$dir_root\install.esd /compress:recovery /CheckIntegrity
         }
     } else {
-        Write-Output `n
-        Write-ColorOutput -FC Yellow "Merging $source_wim to install.wim.."
+        # add to new install.wim
         dism /Export-Image /SourceImageFile:$source_wim /SourceIndex:$index /DestinationImageFile:$dir_root\install.wim /compress:max /CheckIntegrity
     }
 }
-
-$image_type='esd'
+Write-ColorOutput -FC Green "Done Consolidating Install Iamge(s)"
 Write-Output `n
+
+# Remove Original Source Image at source directory
 Write-Output "Removing Original Source Image.."
 Remove-Item "$dir_source\sources\install.$image_type"
-Write-Output "Inserting New Source Image.."
+# Copy the new Source Image to directory
+Write-Output "Copying New Source Image.."
 Copy-FileWithProgress -Source "$dir_root\install.$image_type" -Destination "$dir_source\sources\install.$image_type" -Activity "Copying new install.$image_type to souce directory"
-
 Write-Output `n
+
 Write-ColorOutput -FC Green "Windows Image completed."
+Write-Output `n
+
 
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Processing Boot Image:"
 Write-Output `n
 mkdir -p "$dir_scratch\boot" -Force >$null
+
+# Mount boot image @index 2
+Write-ColorOutput -FC Black -BC Yellow "Mounting Boot Image.."
 dism /mount-image /imagefile:$dir_source\sources\boot.wim /index:2 /mountdir:$dir_scratch\boot
-
 Write-Output `n
-Write-ColorOutput -FC Yellow -BC Black "Aplying Registry Configs.."
+
+# Apply Registry Configurations
+Write-ColorOutput -FC Black -BC Yellow "Aplying Registry Configs.."
 Update-RegistryOnBootWIM -Working_Directory "$dir_scratch\boot"
+Write-Output `n
 
-Write-Output "Unmounting Boot image..."
+Write-ColorOutput -FC Black -BC White "Commiting Changes & Un-Mounting..."
 dism /unmount-image /mountdir:$dir_scratch\boot /commit
-
-Write-Output `n
-Write-ColorOutput -FC Green "Done Patching Boot Image!"
-
-# Compile ISO
-Write-Output `n
-Write-ColorOutput -FC Green -BC Black "Slim11 Image is now completed! Finalizing Sources.."
 Write-Output `n
 
-Write-Output "Copying Unattended XML file for bypassing MS account on OOBE..."
-Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml"  -Destination "$dir_sources\autounattend.xml" -Activity "Inserting unattened.xml"
+Write-ColorOutput -FC Green "Done Patching Boot Image"
+Write-Output `n
+
+
 
 Write-Output `n
-Write-ColorOutput -FC White -BC Black "Generating ISO file..."
-if ( Test-Path -Path "$PSScriptRoot\Windows_Slim11.iso" -PathType Leaf) {Remove-Item -Path "$PSScriptRoot\Windows_Slim11.iso" -Force}
-# $boot_data="2#p0,e,b$dir_source\boot\etfsboot.com#pEF,e,b$dir_source\efi\microsoft\boot\efisys.bin $dir_source $PSScriptRoot\Slim11.iso"
-# & "$PSScriptRoot\oscdimg.exe" -m -o -u2 -udfver102 -bootdata:$boot_data
-& "$PSScriptRoot\oscdimg.exe" -m -o -u2 -udfver102 -bootdata:2`#p0,e,b$dir_source\boot\etfsboot.com`#pEF,e,b$dir_source\efi\microsoft\boot\efisys.bin $dir_source $PSScriptRoot\Windows_Slim11.iso
+Write-ColorOutput -FC Green -BC Black "Slim11 Install & Boot Image is now completed! Finalizing other Tasks.."
+Write-Output `n
+
+# Copy Autounattend.xml to root of source directory
+Write-Output "Copying Autounattend XML file to root source dir..."
+Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml"  -Destination "$dir_sources\autounattend.xml" -Activity "Copying autounattend.xml to $dir_sources"
+Write-Output `n
+
+
+if ($create_iso -eq $true) {
+    # Generate the ISO Image
+    Write-ColorOutput -FC White -BC Black "Generating ISO file..."
+    Write-Output `n
+
+    # Remove Existing Slim11 Image
+    if ( Test-Path -Path "$PathToFinal_ISO_IMAGE" -PathType Leaf) {
+        Write-ColorOutput -FC Red "Warning Image already exist @ $PathToFinal_ISO_IMAGE. It will be renamed to a suffix of Windows_Slim11.old"
+        Start-Sleep 5
+        Rename-Item -Path "$PathToFinal_ISO_IMAGE" -NewName "Windows_Slim11.old" -Force
+    }
+
+    # Generate ISO using OSCDIMG
+    $boot_data="2#p0,e,b$dir_source\boot\etfsboot.com`#pEF,e,b$dir_source\efi\microsoft\boot\efisys.bin"
+    oscdimg.exe -m -o -u2 -udfver102 -bootdata:"$boot_data" "$dir_source" "$PathToFinal_ISO_IMAGE"
+} else {
+    Write-Output "`nSkipped ISO Creation.`n"
+}
 
 Write-Output `n
 Write-ColorOutput -FC Green -BC Black "Creation completed! Done!"
-
 Write-Output `n
-Write-ColorOutput -FC Red "Cleanup? Working directory $dir_root will be purge if you continue."
-Write-Output `n
-$CleanUp = Read-Host -Prompt "Please enter `"No`" to skip clean up"
 
-if ($CleanUp -inotmatch "no") {
-    Write-Output "Performing Cleanup..."
-    Remove-Item -Recurse -Force "$dir_root"
+#
+# End Main Script
+# -------------------------------------------------------------------------------------------------------------------------------
+
+
+if ($create_iso -eq $false){
+    Write-Output `n
+    Write-ColorOutput -FC Red "Cleanup Working directory? $dir_root will be purge if you continue."
+    Write-Output `n
+    $CleanUp = Read-Host -Prompt "Please enter `"No`" to skip clean up"
+    if ($CleanUp -inotmatch "no") {
+        Write-Output "Performing Cleanup..."
+        Remove-Item -Recurse -Force "$dir_root"
+    }
 }
 
-Exit-Script
+Exit-Script -SkipPause $true
