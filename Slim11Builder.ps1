@@ -352,25 +352,25 @@ function Mount-Registry{
 # General SubFunction to Bypass Windows 11 Requirements; This can be impletemented in OOBE, since were already here why not implement it already.
 function Set-BypassSystemRequirments{
     Write-Output "Disable - UnsupportedHardwareNotificationCache SV1 in Default"
-    Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f >$null 
+    Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f 
     Write-Output "Disable - UnsupportedHardwareNotificationCache SV2 in Default"
-    Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f
     Write-Output "Disable - UnsupportedHardwareNotificationCache SV1 in USER"
-    Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f
     Write-Output "Disable - UnsupportedHardwareNotificationCache SV2 in USER"
-    Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f
     Write-Output "Enable  - BypassCPUCheck in System"
-    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassCPUCheck" /t REG_DWORD /d "1" /f >$null
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassCPUCheck" /t REG_DWORD /d "1" /f
     Write-Output "Enable  - BypassRAMCheck in System"
-    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d "1" /f >$null
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d "1" /f
     Write-Output "Enable  - BypassSecureBootCheck in System"
-    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d "1" /f >$null 
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d "1" /f 
     Write-Output "Enable  - BypassStorageCheck in System"
-    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d "1" /f >$null
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d "1" /f
     Write-Output "Enable  - BypassTPMCheck in System"
-    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d "1" /f >$null
+    Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d "1" /f
     Write-Output "Enable  - AllowUpgradesWithUnsupportedTPMOrCPU in System"
-    Reg add "HKLM\slim11SYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d "1" /f >$null
+    Reg add "HKLM\slim11SYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d "1" /f
     # 
     Write-Output `n
 }
@@ -409,55 +409,55 @@ function Update-RegistryOnInstallWIM{
 
     # Disable Dynamic Content
     Write-ColorOutput -FC Yellow "Disabling Dynamic Content in Start-Menu:"
-    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\Windows Search" /v  "EnableDynamicContentInWSB" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\Windows Search" /v  "EnableDynamicContentInWSB" /t REG_DWORD /d "0" /f
     Write-Output `n
 
     # Disable Teams (requires elevated permission)
     Write-ColorOutput -FC Yellow "Disabling Teams:"
-    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\Communications" /v "ConfigureChatAutoInstall" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\Communications" /v "ConfigureChatAutoInstall" /t REG_DWORD /d "0" /f
     Write-Output `n
 
     # Disable Sponsored Apps
     Write-ColorOutput -FC Yellow "Disabling Sponsored Apps:"
     Write-Output "Disable - OemPreInstalledAppsEnabled.."
-    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "OemPreInstalledAppsEnabled" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "OemPreInstalledAppsEnabled" /t REG_DWORD /d "0" /f
     Write-Output "Disable - PreInstalledAppsEnabled.."
-    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "PreInstalledAppsEnabled" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "PreInstalledAppsEnabled" /t REG_DWORD /d "0" /f
     Write-Output "Disable - SilentInstalledAppsEnabled.."
-    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SilentInstalledAppsEnabled" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SilentInstalledAppsEnabled" /t REG_DWORD /d "0" /f
     Write-Output "Enable  - DisableWindowsConsumerFeatures.."
-    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d "1" /f >$null
+    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d "1" /f
     Write-Output "Disable - ConfigureStartPins.."
-    Reg add "HKLM\slim11SOFTWARE\Microsoft\PolicyManager\current\device\Start" /v "ConfigureStartPins" /t REG_SZ /d "{`"pinnedList`": [{}]}" /f >$null
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\PolicyManager\current\device\Start" /v "ConfigureStartPins" /t REG_SZ /d "{`"pinnedList`": [{}]}" /f
     Write-Output `n
 
     Write-ColorOutput -FC Yellow "Enabling Local Accounts on OOBE:"
     Write-Output "Enable  -  BypassNRO.."
-    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v "BypassNRO" /t REG_DWORD /d "1" /f >$null
-    Write-Output "Inserting autounattend.xml to Sysprep"
-    Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml" -Destination "$Working_Directory\Windows\System32\Sysprep\autounattend.xml" -Activity "Inserting autounattend.xml"
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v "BypassNRO" /t REG_DWORD /d "1" /f
+    Write-Output "Copying autounattend.xml to Sysprep"
+    Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml" -Destination "$Working_Directory\Windows\System32\Sysprep\autounattend.xml" -Activity "Copying autounattend.xml to Source\Windows\System32\Sysprep\autounattend.xml"
     Write-Output `n
 
     Write-ColorOutput -FC Yellow "Disabling Reserved Storage:"
     Write-Output "Disable -  ShippedWithReserves.."
-    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager" /v "ShippedWithReserves" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager" /v "ShippedWithReserves" /t REG_DWORD /d "0" /f 
     Write-Output `n
 
     Write-ColorOutput -FC Yellow "Configuring Chat & TaskbarMn icon:"
     Write-Output "Disable -  ChatIcon.."
-    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\Windows Chat" /v "ChatIcon" /t REG_DWORD /d "3" /f >$null
+    Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\Windows Chat" /v "ChatIcon" /t REG_DWORD /d "3" /f
     Write-Output "Disable -  TaskbarMn.."
-    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d "0" /f >$null
+    Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d "0" /f
     Write-Output `n
     
     Write-ColorOutput -FC Yellow "Removing One-Drive Setup.."
-    Reg delete "HKU\mount\Software\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f >$null
+    Reg delete "HKU\mount\Software\Microsoft\Windows\CurrentVersion\Run" /v "OneDriveSetup" /f
     Write-Output `n
 
     # to-do: This should be in tandem with deletion of the directories
     Write-ColorOutput -FC Yellow "Removing Microsoft Edge Remnants:"
-    Reg delete "HKLM\slim11SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge" /f >$null
-    Reg delete "HKLM\slim11SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge Update" /f >$null
+    Reg delete "HKLM\slim11SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge" /f
+    Reg delete "HKLM\slim11SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft Edge Update" /f
     Write-Output `n
 
     # Un-Mount Registry
@@ -782,7 +782,7 @@ Write-Output `n
 
 # Delete old install.wim/esd in dir_root
 if (Test-Path -Path "$dir_root\install.$image_type" -PathType Leaf) {
-    Write-ColorOutput -Magenta "Removing old Install Image @ $dir_root\install.$image_type.."
+    Write-ColorOutput -FC Magenta "Removing old Install Image @ $dir_root\install.$image_type.."
     Remove-Item "$dir_root\install.$image_type"
 }
 
@@ -852,7 +852,7 @@ Write-Output `n
 
 
 Write-Output `n
-Write-ColorOutput -FC Green -BC Black "Slim11 Install & Boot Image is now completed! Finalizing other Tasks.."
+Write-ColorOutput -FC Green -BC Black "Slim11 Install & Boot Image are now completed! Finalizing other Tasks.."
 Write-Output `n
 
 # Copy Autounattend.xml to root of source directory
@@ -889,7 +889,7 @@ Write-Output `n
 # -------------------------------------------------------------------------------------------------------------------------------
 
 
-if ($create_iso -eq $false){
+if ($create_iso -eq $true){
     Write-Output `n
     Write-ColorOutput -FC Red "Cleanup Working directory? $dir_root will be purge if you continue."
     Write-Output `n
@@ -898,6 +898,7 @@ if ($create_iso -eq $false){
         Write-Output "Performing Cleanup..."
         Remove-Item -Recurse -Force "$dir_root"
     }
+    Exit-Script -SkipPause $true
+} else {
+    Exit-Script
 }
-
-Exit-Script -SkipPause $true
