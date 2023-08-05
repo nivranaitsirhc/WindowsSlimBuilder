@@ -11,8 +11,8 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 # Start Script Transcript
 Start-Transcript -Append $PSScriptRoot\console.log
 $Host.UI.RawUI.WindowTitle = "Slim 11 Builder"
-$Host.UI.RawUI.WindowSize.Height = 80
-$Host.UI.RawUI.WindowSize.Width  = 50
+# $Host.UI.RawUI.WindowSize.Height = 80
+# $Host.UI.RawUI.WindowSize.Width  = 50
 
 
 
@@ -68,6 +68,37 @@ $env:PATH += ";$PSScriptRoot"
 # Function Declarations
 # -------------------------------------------------------------------------------------------------------------------------------
 #
+
+
+# https://community.spiceworks.com/topic/664020-maximize-an-open-window-with-powershell-win7
+function Set-WindowStyle {
+param(
+    [Parameter()]
+    [ValidateSet('FORCEMINIMIZE', 'HIDE', 'MAXIMIZE', 'MINIMIZE', 'RESTORE', 
+                 'SHOW', 'SHOWDEFAULT', 'SHOWMAXIMIZED', 'SHOWMINIMIZED', 
+                 'SHOWMINNOACTIVE', 'SHOWNA', 'SHOWNOACTIVATE', 'SHOWNORMAL')]
+    $Style = 'SHOW',
+    [Parameter()]
+    $MainWindowHandle = (Get-Process -Id $pid).MainWindowHandle
+)
+    $WindowStates = @{
+        FORCEMINIMIZE   = 11; HIDE            = 0
+        MAXIMIZE        = 3;  MINIMIZE        = 6
+        RESTORE         = 9;  SHOW            = 5
+        SHOWDEFAULT     = 10; SHOWMAXIMIZED   = 3
+        SHOWMINIMIZED   = 2;  SHOWMINNOACTIVE = 7
+        SHOWNA          = 8;  SHOWNOACTIVATE  = 4
+        SHOWNORMAL      = 1
+    }
+    Write-Verbose ("Set Window Style {1} on handle {0}" -f $MainWindowHandle, $($WindowStates[$style]))
+
+    $Win32ShowWindowAsync = Add-Type –memberDefinition @” 
+    [DllImport("user32.dll")] 
+    public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+“@ -name “Win32ShowWindowAsync” -namespace Win32Functions –passThru
+
+    $Win32ShowWindowAsync::ShowWindowAsync($MainWindowHandle, $WindowStates[$Style]) | Out-Null
+}
 
 # Displays Colored Text
 function Write-ColorOutput(){
@@ -322,27 +353,27 @@ function Mount-Registry{
     )
     if ($Working_Directory -ne '') {
         Write-ColorOutput -FC Yellow "Mounting Registry..."
-        Write-ColorOutput -FC DarkGreen "Loading - COMPONENTS"
+        Write-ColorOutput -FC Green "Loading - COMPONENTS"
         Reg load HKLM\slim11COMPONENTS   "$Working_Directory\Windows\System32\config\COMPONENTS" 
-        Write-ColorOutput -FC DarkGreen "Loading - DEFAULT" 
+        Write-ColorOutput -FC Green "Loading - DEFAULT" 
         Reg load HKLM\slim11DEFAULT      "$Working_Directory\Windows\System32\config\default"    
-        Write-ColorOutput -FC DarkGreen "Loading - SOFTWARE"
+        Write-ColorOutput -FC Green "Loading - SOFTWARE"
         Reg load HKLM\slim11SOFTWARE     "$Working_Directory\Windows\System32\config\SOFTWARE"   
-        Write-ColorOutput -FC DarkGreen "Loading - SYSTEM"
+        Write-ColorOutput -FC Green "Loading - SYSTEM"
         Reg load HKLM\slim11SYSTEM       "$Working_Directory\Windows\System32\config\SYSTEM"     
-        Write-ColorOutput -FC DarkGreen "Loading - USER"
+        Write-ColorOutput -FC Green "Loading - USER"
         Reg load HKLM\slim11NTUSER       "$Working_Directory\Users\Default\ntuser.dat"           
     } else {
         Write-ColorOutput -FC Yellow "Un-Mounting Registry..."
-        Write-ColorOutput -FC DarkGreen "Unloading - COMPONENTS"
+        Write-ColorOutput -FC Green "Unloading - COMPONENTS"
         Reg unload HKLM\slim11COMPONENTS
-        Write-ColorOutput -FC DarkGreen "Unloading - DEFAULT"
+        Write-ColorOutput -FC Green "Unloading - DEFAULT"
         Reg unload HKLM\slim11DEFAULT
-        Write-ColorOutput -FC DarkGreen "Unloading - SOFTWARE"
+        Write-ColorOutput -FC Green "Unloading - SOFTWARE"
         Reg unload HKLM\slim11SOFTWARE
-        Write-ColorOutput -FC DarkGreen "Unloading - SYSTEM"
+        Write-ColorOutput -FC Green "Unloading - SYSTEM"
         Reg unload HKLM\slim11SYSTEM
-        Write-ColorOutput -FC DarkGreen "Unloading - USER"
+        Write-ColorOutput -FC Green "Unloading - USER"
         Reg unload HKLM\slim11NTUSER
     }
     #
@@ -351,25 +382,25 @@ function Mount-Registry{
 
 # General SubFunction to Bypass Windows 11 Requirements; This can be impletemented in OOBE, since were already here why not implement it already.
 function Set-BypassSystemRequirments{
-    Write-ColorOutput -FC DarkGreen "Disable - UnsupportedHardwareNotificationCache SV1 in Default"
+    Write-ColorOutput -FC Green "Disable - UnsupportedHardwareNotificationCache SV1 in Default"
     Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f 
-    Write-ColorOutput -FC DarkGreen "Disable - UnsupportedHardwareNotificationCache SV2 in Default"
+    Write-ColorOutput -FC Green "Disable - UnsupportedHardwareNotificationCache SV2 in Default"
     Reg add "HKLM\slim11DEFAULT\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f
-    Write-ColorOutput -FC DarkGreen "Disable - UnsupportedHardwareNotificationCache SV1 in USER"
+    Write-ColorOutput -FC Green "Disable - UnsupportedHardwareNotificationCache SV1 in USER"
     Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV1" /t REG_DWORD /d "0" /f
-    Write-ColorOutput -FC DarkGreen "Disable - UnsupportedHardwareNotificationCache SV2 in USER"
+    Write-ColorOutput -FC Green "Disable - UnsupportedHardwareNotificationCache SV2 in USER"
     Reg add "HKLM\slim11NTUSER\Control Panel\UnsupportedHardwareNotificationCache" /v "SV2" /t REG_DWORD /d "0" /f
-    Write-ColorOutput -FC DarkGreen "Enable  - BypassCPUCheck in System"
+    Write-ColorOutput -FC Green "Enable  - BypassCPUCheck in System"
     Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassCPUCheck" /t REG_DWORD /d "1" /f
-    Write-ColorOutput -FC DarkGreen "Enable  - BypassRAMCheck in System"
+    Write-ColorOutput -FC Green "Enable  - BypassRAMCheck in System"
     Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassRAMCheck" /t REG_DWORD /d "1" /f
-    Write-ColorOutput -FC DarkGreen "Enable  - BypassSecureBootCheck in System"
+    Write-ColorOutput -FC Green "Enable  - BypassSecureBootCheck in System"
     Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassSecureBootCheck" /t REG_DWORD /d "1" /f 
-    Write-ColorOutput -FC DarkGreen "Enable  - BypassStorageCheck in System"
+    Write-ColorOutput -FC Green "Enable  - BypassStorageCheck in System"
     Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassStorageCheck" /t REG_DWORD /d "1" /f
-    Write-ColorOutput -FC DarkGreen "Enable  - BypassTPMCheck in System"
+    Write-ColorOutput -FC Green "Enable  - BypassTPMCheck in System"
     Reg add "HKLM\slim11SYSTEM\Setup\LabConfig" /v "BypassTPMCheck" /t REG_DWORD /d "1" /f
-    Write-ColorOutput -FC DarkGreen "Enable  - AllowUpgradesWithUnsupportedTPMOrCPU in System"
+    Write-ColorOutput -FC Green "Enable  - AllowUpgradesWithUnsupportedTPMOrCPU in System"
     Reg add "HKLM\slim11SYSTEM\Setup\MoSetup" /v "AllowUpgradesWithUnsupportedTPMOrCPU" /t REG_DWORD /d "1" /f
     # 
     Write-Output `n
@@ -419,34 +450,34 @@ function Update-RegistryOnInstallWIM{
 
     # Disable Sponsored Apps
     Write-ColorOutput -FC Yellow "Disabling Sponsored Apps:"
-    Write-ColorOutput -FC DarkGreen "Disable - OemPreInstalledAppsEnabled.."
+    Write-ColorOutput -FC Green "Disable - OemPreInstalledAppsEnabled.."
     Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "OemPreInstalledAppsEnabled" /t REG_DWORD /d "0" /f
-    Write-ColorOutput -FC DarkGreen "Disable - PreInstalledAppsEnabled.."
+    Write-ColorOutput -FC Green "Disable - PreInstalledAppsEnabled.."
     Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "PreInstalledAppsEnabled" /t REG_DWORD /d "0" /f
-    Write-ColorOutput -FC DarkGreen "Disable - SilentInstalledAppsEnabled.."
+    Write-ColorOutput -FC Green "Disable - SilentInstalledAppsEnabled.."
     Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SilentInstalledAppsEnabled" /t REG_DWORD /d "0" /f
-    Write-ColorOutput -FC DarkGreen "Enable  - DisableWindowsConsumerFeatures.."
+    Write-ColorOutput -FC Green "Enable  - DisableWindowsConsumerFeatures.."
     Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d "1" /f
-    Write-ColorOutput -FC DarkGreen "Disable - ConfigureStartPins.."
+    Write-ColorOutput -FC Green "Disable - ConfigureStartPins.."
     Reg add "HKLM\slim11SOFTWARE\Microsoft\PolicyManager\current\device\Start" /v "ConfigureStartPins" /t REG_SZ /d "{`"pinnedList`": [{}]}" /f
     Write-Output `n
 
     Write-ColorOutput -FC Yellow "Enabling Local Accounts on OOBE:"
-    Write-ColorOutput -FC DarkGreen "Enable  -  BypassNRO.."
+    Write-ColorOutput -FC Green "Enable  -  BypassNRO.."
     Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\OOBE" /v "BypassNRO" /t REG_DWORD /d "1" /f
-    Write-ColorOutput -FC DarkGreen "Copying autounattend.xml to Sysprep"
+    Write-ColorOutput -FC Green "Copying autounattend.xml to Sysprep"
     Copy-FileWithProgress -Source "$PSScriptRoot\autounattend.xml" -Destination "$Working_Directory\Windows\System32\Sysprep\autounattend.xml" -Activity "Copying autounattend.xml to Source\Windows\System32\Sysprep\autounattend.xml"
     Write-Output `n
 
     Write-ColorOutput -FC Yellow "Disabling Reserved Storage:"
-    Write-ColorOutput -FC DarkGreen "Disable -  ShippedWithReserves.."
+    Write-ColorOutput -FC Green "Disable -  ShippedWithReserves.."
     Reg add "HKLM\slim11SOFTWARE\Microsoft\Windows\CurrentVersion\ReserveManager" /v "ShippedWithReserves" /t REG_DWORD /d "0" /f 
     Write-Output `n
 
     Write-ColorOutput -FC Yellow "Configuring Chat & TaskbarMn icon:"
-    Write-ColorOutput -FC DarkGreen "Disable -  ChatIcon.."
+    Write-ColorOutput -FC Green "Disable -  ChatIcon.."
     Reg add "HKLM\slim11SOFTWARE\Policies\Microsoft\Windows\Windows Chat" /v "ChatIcon" /t REG_DWORD /d "3" /f
-    Write-ColorOutput -FC DarkGreen "Disable -  TaskbarMn.."
+    Write-ColorOutput -FC Green "Disable -  TaskbarMn.."
     Reg add "HKLM\slim11NTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced" /v "TaskbarMn" /t REG_DWORD /d "0" /f
     Write-Output `n
     
@@ -526,6 +557,9 @@ function Show-Slim11Header{
 # Initialization
 # -------------------------------------------------------------------------------------------------------------------------------
 #
+
+# Maximed Console Window 
+Set-WindowStyle MAXIMIZE
 
 # Show Welcome Header
 Show-Slim11Header
@@ -869,9 +903,10 @@ if ($create_iso -eq $true) {
     Write-ColorOutput -FC White -BC Black "Generating ISO file..."
     Write-Output `n
 
+    
+    $new_iso_name = "Windows_Slim11-Old-$(Get-Date -f yyyy-mm-dd_hh-mm).iso"
     # Remove Existing Slim11 Image
     if ( Test-Path -Path "$PathToFinal_ISO_IMAGE" -PathType Leaf) {
-        $new_iso_name = "Windows_Slim11-Old-$(Get-Date -f yyyy-mm-dd_hh-mm).iso"
         Write-ColorOutput -FC Red "Warning Image already exist @ $PathToFinal_ISO_IMAGE. It will be renamed to a suffix of $new_iso_name"
         Start-Sleep 5
         Rename-Item -Path "$PathToFinal_ISO_IMAGE" -NewName "$new_iso_name" -Force
