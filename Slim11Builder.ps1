@@ -9,7 +9,7 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 # Start Script Transcript
-Start-Transcript -Append $PSScriptRoot\console.log
+Start-Transcript -Append $PSScriptRoot\console-$(Get-Date -Format yyyy-mm-dd_hh-mm-ss).log
 $Host.UI.RawUI.WindowTitle = "Slim 11 Builder"
 # $Host.UI.RawUI.WindowSize.Height = 80
 # $Host.UI.RawUI.WindowSize.Width  = 50
@@ -23,8 +23,11 @@ $Host.UI.RawUI.WindowTitle = "Slim 11 Builder"
 $DebugPreference = "SilentlyContinue"      # Disable Debug Messages
 # $DebugPreference = "Continue"               # Enable Debug Messages
 
+# Windows ISO Output File name
+$ISO_Out_FileName = "Windows_Slim11.iso"
+
 # Path to where the final ISO image will be located (default to root of script directory)
-$PathToFinal_ISO_IMAGE = "$PSScriptRoot\Windows_Slim11.iso"
+$PathToFinal_ISO_IMAGE = "$PSScriptRoot"
 
 # Working Directory
 # The path used in building the image. You can change this path to wherever you like. (SSD Drive is recommended)
@@ -903,18 +906,18 @@ if ($create_iso -eq $true) {
     Write-ColorOutput -FC White -BC Black "Generating ISO file..."
     Write-Output `n
 
-    
-    $new_iso_name = "Windows_Slim11-Old-$(Get-Date -f yyyy-mm-dd_hh-mm).iso"
+    $path_to_iso_file    = "$PathToFinal_ISO_IMAGE\$ISO_Out_FileName"
     # Remove Existing Slim11 Image
-    if ( Test-Path -Path "$PathToFinal_ISO_IMAGE" -PathType Leaf) {
-        Write-ColorOutput -FC Red "Warning Image already exist @ $PathToFinal_ISO_IMAGE. It will be renamed to a suffix of $new_iso_name"
+    if ( Test-Path -Path "$path_to_iso_file" -PathType Leaf) {
+        $new_old_iso_name = "Old__${ISO_Out_FileName}__$(Get-Date (Get-Item $path_to_iso_file | Select-Object LastWriteTime).LastWriteTime -f yyyy-mm-dd_hh-mm).iso"
+        Write-ColorOutput -FC Red "Warning Image already exist @ $path_to_iso_file. It will be renamed to a suffix of $new_old_iso_name"
         Start-Sleep 5
-        Rename-Item -Path "$PathToFinal_ISO_IMAGE" -NewName "$new_iso_name" -Force
+        Rename-Item -Path "$path_to_iso_file" -NewName "$new_old_iso_name" -Force
     }
 
     # Generate ISO using OSCDIMG
     $boot_data="2#p0,e,b$dir_source\boot\etfsboot.com`#pEF,e,b$dir_source\efi\microsoft\boot\efisys.bin"
-    oscdimg.exe -m -o -u2 -udfver102 -bootdata:"$boot_data" "$dir_source" "$PathToFinal_ISO_IMAGE"
+    oscdimg.exe -m -o -u2 -udfver102 -bootdata:"$boot_data" "$dir_source" "$path_to_iso_file"
 } else {
     Write-Output "`nSkipped ISO Creation.`n"
 }
