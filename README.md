@@ -1,9 +1,52 @@
 # Slim11Builder
-Scripts to build a trimmed-down Windows 11 image.
+A Customizable Powershell Script to build a trimmed-down Windows 11 image.
 
-*I am to lazy to write this* `readme.md` *so just see the logs. You are welcome!*
+### Features:
+- Windows 10/11
+- Multiple Windows Edition Selection into one ISO.
+- Customize Remove App Package List/Files/Directories.
+- Log Console to file.
 
-#### console.log - output
+
+### Requirements
+- Windows <strong>10/11</strong>
+- Windows Powershell >= <strong>5.1</strong>
+- Windows Deployment Image Servicing and Management (Accessible thru Path)
+### Requirements (Optional)
+- OSCDImg Executable (Accessible thru $PATH)
+- SetACL (Not Yet Implementation)
+
+## Config Files
+- <strong>remove_packages_provisioned.ini</strong>
+  - List of Provisioned apps that will be removed
+  - Partial app name is recommended.
+- <strong>remove_packages.ini</strong>
+  - List of apps that will be removed
+  - Partial app name is recommended.
+- <strong>remove_directories.ini</strong>
+  - List of directories to be removed
+  - Full path is required.
+    - e.g. *Program Files (x86)\MicrosoftOffice*
+- <strong>remove_files.ini</strong>
+  - List of files to be removed
+  - Full path is required.
+    - e.g. Windows\System32\Drivers\etc\hosts.exe
+
+
+
+## Warranty
+This script is provided as-is without warranty.
+Reporting bugs will be highly appreciated.
+
+## Support
+* [Buy Me a Coffee](https://www.buymeacoffee.com/caccabo "A caffine of excitement")
+* [Paypal](https://paypal.me/caccabo "PayPal")
+
+
+## Credits & Thanks
+* [Tiny11 Builder](https://github.com/ntdevlabs/tiny11builder)
+
+## Sample Terminal Output
 ```
 Slim 11 Image Builder
       _  _                _  _     _             _  _      _
@@ -18,6 +61,8 @@ A Powershell rendition of tiny11builder
 
 Mount your Windows 11/10 Image ISO and enter the "Drive Letter" mount point.
 
+You Entered Drive Letter: "E"
+
 Checking Paths:
 - Boot Image Found!
 - Install Image Found!
@@ -27,7 +72,7 @@ Done!
 
 BytesCopied FilesCopied
 ----------- -----------
- 5074603507           1
+ 5565239043           2
 
 Getting Image information:
 
@@ -92,9 +137,10 @@ e.g. all
 
 Note: Invalid inputs are currently not validated. Please avoid erroneous input.
 
-Selected Index/Indices : 1 6
+Selected Index/Indices : 1
 
 Removing Read-Only flags for the images..
+Done!
 
 
 Processing Install Images:
@@ -102,7 +148,7 @@ Processing Install Images:
 Mounting Windows 11 Home..
 
 Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
+Version: 10.0.19041.844
 
 Mounting image
 [==========================100.0%==========================]
@@ -184,42 +230,66 @@ The operation completed successfully.
 
 Bypassing system requirements(on the system image):
 Disable - UnsupportedHardwareNotificationCache SV1 in Default
+The operation completed successfully.
 Disable - UnsupportedHardwareNotificationCache SV2 in Default
+The operation completed successfully.
 Disable - UnsupportedHardwareNotificationCache SV1 in USER
+The operation completed successfully.
 Disable - UnsupportedHardwareNotificationCache SV2 in USER
+The operation completed successfully.
 Enable  - BypassCPUCheck in System
+The operation completed successfully.
 Enable  - BypassRAMCheck in System
+The operation completed successfully.
 Enable  - BypassSecureBootCheck in System
+The operation completed successfully.
 Enable  - BypassStorageCheck in System
+The operation completed successfully.
 Enable  - BypassTPMCheck in System
+The operation completed successfully.
 Enable  - AllowUpgradesWithUnsupportedTPMOrCPU in System
+The operation completed successfully.
 
 Disabling Dynamic Content in Start-Menu:
+The operation completed successfully.
 
 Disabling Teams:
+ERROR: Access is denied.
 
 Disabling Sponsored Apps:
 Disable - OemPreInstalledAppsEnabled..
+The operation completed successfully.
 Disable - PreInstalledAppsEnabled..
+The operation completed successfully.
 Disable - SilentInstalledAppsEnabled..
+The operation completed successfully.
 Enable  - DisableWindowsConsumerFeatures..
+The operation completed successfully.
 Disable - ConfigureStartPins..
+The operation completed successfully.
 
 Enabling Local Accounts on OOBE:
 Enable  -  BypassNRO..
-Inserting autounattend.xml to Sysprep
+The operation completed successfully.
+Copying autounattend.xml to Sysprep
 Done!
 
 Disabling Reserved Storage:
 Disable -  ShippedWithReserves..
+The operation completed successfully.
 
 Configuring Chat & TaskbarMn icon:
 Disable -  ChatIcon..
+The operation completed successfully.
 Disable -  TaskbarMn..
+The operation completed successfully.
 
 Removing One-Drive Setup..
+ERROR: The system was unable to find the specified registry key or value.
 
 Removing Microsoft Edge Remnants:
+The operation completed successfully.
+The operation completed successfully.
 
 Un-Mounting Registry...
 Unloading - COMPONENTS
@@ -239,7 +309,7 @@ Done Patching Registry!
 Cleaning Image...
 
 Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
+Version: 10.0.19041.844
 
 Image Version: 10.0.22621.1702
 
@@ -249,7 +319,7 @@ The operation completed successfully.
 Commiting Changes & Un-Mounting...
 
 Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
+Version: 10.0.19041.844
 
 Saving image
 [==========================100.0%==========================]
@@ -260,183 +330,15 @@ The operation completed successfully.
 
 Done Processing Windows 11 Home!
 
-Mounting Windows 11 Pro..
-
-Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
-
-Mounting image
-[==========================100.0%==========================]
-The operation completed successfully.
-Mounting Complete!
-
-Removing Provisioned Packages..
-Remove-ProvisionedAppPackages: Removing Provisioned Packages..
-Remove-ProvisionedAppPackages: Processed! Clipchamp.Clipchamp_2.2.8.0_neutral_~_yxz26nhyzhsrt
-Remove-ProvisionedAppPackages: Processed! Microsoft.BingNews_4.2.27001.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.BingWeather_4.53.33420.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.GamingApp_2021.427.138.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.GetHelp_10.2201.421.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.Getstarted_2021.2204.1.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.MicrosoftOfficeHub_18.2204.1141.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.MicrosoftSolitaireCollection_4.12.3171.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.People_2020.901.1724.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.PowerAutomateDesktop_10.0.3735.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.Todos_2.54.42772.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.WindowsAlarms_2022.2202.24.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! microsoft.windowscommunicationsapps_16005.14326.20544.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.WindowsFeedbackHub_2022.106.2230.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.WindowsMaps_2022.2202.6.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.WindowsSoundRecorder_2021.2103.28.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.Xbox.TCUI_1.23.28004.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.XboxGamingOverlay_2.622.3232.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.XboxGameOverlay_1.47.2385.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.XboxSpeechToTextOverlay_1.17.29001.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.YourPhone_1.22022.147.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.ZuneMusic_11.2202.46.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.ZuneVideo_2019.22020.10021.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Not found! MicrosoftCorporationII.MicrosoftFamily
-Remove-ProvisionedAppPackages: Processed! MicrosoftCorporationII.QuickAssist_2022.414.1758.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Processed! Microsoft.549981C3F5F10_3.2204.14815.0_neutral_~_8wekyb3d8bbwe
-Remove-ProvisionedAppPackages: Complete!
-
-Removing Packages..
-Remove-AppPackages: Removing App Packages..
-Remove-AppPackages: Processed! Microsoft-Windows-InternetExplorer-Optional-Package~31bf3856ad364e35~amd64~en-GB~11.0.22621.1
-Remove-AppPackages: Processed! Microsoft-Windows-InternetExplorer-Optional-Package~31bf3856ad364e35~amd64~~11.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-Kernel-LA57-FoD-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-LanguageFeatures-Handwriting-en-gb-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-LanguageFeatures-OCR-en-gb-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-LanguageFeatures-Speech-en-gb-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-LanguageFeatures-TextToSpeech-en-gb-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-MediaPlayer-Package~31bf3856ad364e35~amd64~en-GB~10.0.22621.1635
-Remove-AppPackages: Processed! Microsoft-Windows-MediaPlayer-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-MediaPlayer-Package~31bf3856ad364e35~wow64~en-GB~10.0.22621.1
-Remove-AppPackages: Processed! Microsoft-Windows-MediaPlayer-Package~31bf3856ad364e35~wow64~~10.0.22621.1
-Remove-AppPackages: Processed! Microsoft-Windows-TabletPCMath-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackages: Processed! Microsoft-Windows-Wallpaper-Content-Extended-FoD-Package~31bf3856ad364e35~amd64~~10.0.22621.1702
-Remove-AppPackagesFromFileList: Complete!
-
-Removing Directories from Lists..
-Remove-Directories: Removing Directory..
-Remove-Directories: Not found! Program Files (x86)\Microsoft\Edge
-Remove-Directories: Not found! Program Files (x86)\Microsoft\EdgeUpdate
-Remove-Directories: Complete!
-
-Removing Files from Lists..
-Remove-File: Removing Files..
-Remove-File: Processing "Windows\System32\OneDriveSetup.exe"
-processed file: C:\Slim11Builder\scratchdir\6\Windows\System32\OneDriveSetup.exe
-Successfully processed 1 files; Failed processing 0 files
-Remove-File: Complete!
-
-Applying Registry Configs..
-Mounting Registry...
-Loading - COMPONENTS
-The operation completed successfully.
-Loading - DEFAULT
-The operation completed successfully.
-Loading - SOFTWARE
-The operation completed successfully.
-Loading - SYSTEM
-The operation completed successfully.
-Loading - USER
-The operation completed successfully.
-
-Bypassing system requirements(on the system image):
-Disable - UnsupportedHardwareNotificationCache SV1 in Default
-Disable - UnsupportedHardwareNotificationCache SV2 in Default
-Disable - UnsupportedHardwareNotificationCache SV1 in USER
-Disable - UnsupportedHardwareNotificationCache SV2 in USER
-Enable  - BypassCPUCheck in System
-Enable  - BypassRAMCheck in System
-Enable  - BypassSecureBootCheck in System
-Enable  - BypassStorageCheck in System
-Enable  - BypassTPMCheck in System
-Enable  - AllowUpgradesWithUnsupportedTPMOrCPU in System
-
-Disabling Dynamic Content in Start-Menu:
-
-Disabling Teams:
-
-Disabling Sponsored Apps:
-Disable - OemPreInstalledAppsEnabled..
-Disable - PreInstalledAppsEnabled..
-Disable - SilentInstalledAppsEnabled..
-Enable  - DisableWindowsConsumerFeatures..
-Disable - ConfigureStartPins..
-
-Enabling Local Accounts on OOBE:
-Enable  -  BypassNRO..
-Inserting autounattend.xml to Sysprep
-Done!
-
-Disabling Reserved Storage:
-Disable -  ShippedWithReserves..
-
-Configuring Chat & TaskbarMn icon:
-Disable -  ChatIcon..
-Disable -  TaskbarMn..
-
-Removing One-Drive Setup..
-
-Removing Microsoft Edge Remnants:
-
-Un-Mounting Registry...
-Unloading - COMPONENTS
-The operation completed successfully.
-Unloading - DEFAULT
-The operation completed successfully.
-Unloading - SOFTWARE
-The operation completed successfully.
-Unloading - SYSTEM
-The operation completed successfully.
-Unloading - USER
-The operation completed successfully.
-
-Done Patching Registry!
-
-
-Cleaning Image...
-
-Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
-
-Image Version: 10.0.22621.1702
-
-[==========================100.0%==========================]
-The operation completed successfully.
-
-Commiting Changes & Un-Mounting...
-
-Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
-
-Saving image
-[==========================100.0%==========================]
-Unmounting image
-[==========================100.0%==========================]
-The operation completed successfully.
-
-
-Done Processing Windows 11 Pro!
-
 Done Patching Install Image
 
 Consolidating Image(s) to Install.wim..
 
+Removing old Install Image @ C:\Slim11Builder\install.wim..
 Merging Windows 11 Home to install.wim..
 
 Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
-
-Exporting image
-[==========================100.0%==========================]
-The operation completed successfully.
-Merging Windows 11 Pro to install.wim..
-
-Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
+Version: 10.0.19041.844
 
 Exporting image
 [==========================100.0%==========================]
@@ -455,7 +357,7 @@ Processing Boot Image:
 Mounting Boot Image..
 
 Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
+Version: 10.0.19041.844
 
 Mounting image
 [==========================100.0%==========================]
@@ -476,15 +378,25 @@ The operation completed successfully.
 
 Bypassing system requirements(on the setup image):
 Disable - UnsupportedHardwareNotificationCache SV1 in Default
+The operation completed successfully.
 Disable - UnsupportedHardwareNotificationCache SV2 in Default
+The operation completed successfully.
 Disable - UnsupportedHardwareNotificationCache SV1 in USER
+The operation completed successfully.
 Disable - UnsupportedHardwareNotificationCache SV2 in USER
+The operation completed successfully.
 Enable  - BypassCPUCheck in System
+The operation completed successfully.
 Enable  - BypassRAMCheck in System
+The operation completed successfully.
 Enable  - BypassSecureBootCheck in System
+The operation completed successfully.
 Enable  - BypassStorageCheck in System
+The operation completed successfully.
 Enable  - BypassTPMCheck in System
+The operation completed successfully.
 Enable  - AllowUpgradesWithUnsupportedTPMOrCPU in System
+The operation completed successfully.
 
 Un-Mounting Registry...
 Unloading - COMPONENTS
@@ -504,7 +416,7 @@ Done Patching Registry!
 Commiting Changes & Un-Mounting...
 
 Deployment Image Servicing and Management tool
-Version: 10.0.22621.1
+Version: 10.0.19041.844
 
 Saving image
 [==========================100.0%==========================]
@@ -515,13 +427,14 @@ The operation completed successfully.
 Done Patching Boot Image
 
 
-Slim11 Install & Boot Image is now completed! Finalizing other Tasks..
+Slim11 Install & Boot Image are now completed! Finalizing other Tasks..
 
 Copying Autounattend XML file to root source dir...
 Done!
 
 Generating ISO file...
 
+Warning Image already exist @ D:\Slim11Builder\Windows_Slim11.iso. It will be renamed to Windows_Slim11.iso__2023-19-05_11-19.iso
 
 OSCDIMG 2.56 CD-ROM and DVD-ROM Premastering Utility
 Copyright (C) Microsoft, 1993-2012. All rights reserved.
@@ -533,25 +446,18 @@ Scanning source tree complete (944 files in 86 directories)
 
 Computing directory information complete
 
-Image file is 5096407040 bytes (before optimization)
+Image file is 4967333888 bytes (before optimization)
 
-Writing 944 files in 86 directories to C:\Users\yolanda\Desktop\Slim11Builder\Windows_Slim11.iso
+Writing 944 files in 86 directories to D:\Slim11Builder\Windows_Slim11.iso
 
 100% complete
 
 Storage optimization saved 4 files, 24576 bytes (0% of image)
 
-After optimization, image file is 5098481664 bytes
+After optimization, image file is 4969424896 bytes
 Space saved because of embedding, sparseness or optimization = 24576
 
 Done.
 
 Creation completed! Done!
-
-
-Gracefully Exiting..
-**********************
-Windows PowerShell transcript end
-End time: 20230719033952
-**********************
 ```
