@@ -909,7 +909,7 @@ if ($create_iso -eq $true) {
     $path_to_iso_file    = "$PathToFinal_ISO_IMAGE\$ISO_Out_FileName"
     # Remove Existing Slim11 Image
     if ( Test-Path -Path "$path_to_iso_file" -PathType Leaf) {
-        $new_old_iso_name = "Old__${ISO_Out_FileName}__$(Get-Date (Get-Item $path_to_iso_file | Select-Object LastWriteTime).LastWriteTime -f yyyy-mm-dd_hh-mm).iso"
+        $new_old_iso_name = "${ISO_Out_FileName}__$(Get-Date (Get-Item $path_to_iso_file | Select-Object LastWriteTime).LastWriteTime -f yyyy-mm-dd_hh-mm).iso"
         Write-ColorOutput -FC Red "Warning Image already exist @ $path_to_iso_file. It will be renamed to a suffix of $new_old_iso_name"
         Start-Sleep 5
         Rename-Item -Path "$path_to_iso_file" -NewName "$new_old_iso_name" -Force
