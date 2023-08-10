@@ -9,12 +9,11 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 # Start Script Transcript
-Start-Transcript -Append $PSScriptRoot\console-$(Get-Date -Format yyyy-mm-dd_hh-mm-ss).log
+New-Item -Path "$PSScriptRoot\consoleLogs" -Type Directory -Force 2>&1 >$null
+Start-Transcript -Append $PSScriptRoot\ConsoleLogs\console-$(Get-Date -Format yyyy-mm-dd_hh-mm-ss).log
 $Host.UI.RawUI.WindowTitle = "Slim 11 Builder"
 # $Host.UI.RawUI.WindowSize.Height = 80
 # $Host.UI.RawUI.WindowSize.Width  = 50
-
-
 
 # Init Configurations
 # -------------------------------------------------------------------------------------
@@ -42,6 +41,9 @@ $dir_source     = "$dir_root\source"
 
 # Removal Configuration Files
 # Configure these files to what you want to remove.
+
+# Remove List Configuration Comment Character (default for an ini file is ;)
+$ConfigListCommentChar                        = ";"
 
 # Remove App Packages List
 $Remove_Packages_ConfigFile                   = "$PSScriptRoot\remove_packages.ini"
@@ -252,7 +254,8 @@ function Remove-ProvisionedAppPackagesFromFileListList{
     $appxlist = $appxlist -split "PackageName : " | Where-Object {$_}
     Write-Debug "Displaying List of Provisioned Packages`n$appxlist`n"
     foreach ( $appx_provisioned in [System.IO.File]::ReadLines("$Config_File")) {
-    	$targetappx = $appxlist | Select-String -Pattern $appx_provisioned -SimpleMatch
+        if ($appx_provisioned.ToString().SubString(0,1) -eq "$ConfigListCommentChar") {continue}
+    	$targetappx = $appxlist | Select-String -Pattern $appx_provisioned.ToString().Trim() -SimpleMatch
         if ( -not ( $targetappx) ) {
             Write-ColorOutput -FC Magenta "Remove-ProvisionedAppPackages: Not found! $appx_provisioned"
         } else {
@@ -282,7 +285,8 @@ function Remove-AppPackagesFromFileListList{
     $packagelist = $packagelist -split "Package Identity : " | Where-Object {$_}
     Write-Debug "Displaying List of Packages`n$packagelist`n"
     foreach ( $apppackage in [System.IO.File]::ReadLines("$Config_File")) {
-        $targetpackage = $packagelist | Select-String -Pattern $apppackage -SimpleMatch
+        if ($apppackage.ToString().SubString(0,1) -eq "$ConfigListCommentChar") {continue}
+        $targetpackage = $packagelist | Select-String -Pattern $apppackage.ToString().Trim() -SimpleMatch
         if ( -not ( $targetpackage) ) {
             Write-ColorOutput -FC Magenta "Remove-AppPackages: Not found! $apppackage"
         } else {
@@ -309,6 +313,7 @@ function Remove-Directories{
     }
     Write-Output "Remove-Directories: Removing Directory..`n"
     foreach ( $app_dir in [System.IO.File]::ReadLines("$Config_File")) {
+        if ($app_dir.ToString().SubString(0,1) -eq "$ConfigListCommentChar") {continue}
         if ( Test-Path -Path "$Working_Directory\$app_dir" -PathType Leaf ) {
             Write-Output "Remove-Directories: Processing `"$app_dir`""
             takeown /f "$Working_Directory\$app_dir" >$null
@@ -336,6 +341,7 @@ function Remove-File{
     }
     Write-Output "Remove-File: Removing Files..`n"
     foreach ( $app_file in [System.IO.File]::ReadLines("$Config_File")) {
+        if ($app_file.ToString().SubString(0,1) -eq "$ConfigListCommentChar") {continue}
         if ( Test-Path -Path "$Working_Directory\$app_file" -PathType Leaf ) {
             Write-Output "Remove-File: Processing `"$app_file`""
             takeown /f "$Working_Directory\$app_file" >$null
@@ -418,7 +424,7 @@ function Update-RegistryOnBootWIM{
     # Mount Registry
     Mount-Registry -Working_Directory $Working_Directory
     # Bypass System Requirements
-    Write-ColorOutput -FC Yellow "Bypassing system requirements(on the setup image):"
+    Write-ColorOutput -FC Yellow "Bypassing system requirements (Boot Image):"
     Set-BypassSystemRequirments
     # UnMount Registry
     Mount-Registry
@@ -438,7 +444,7 @@ function Update-RegistryOnInstallWIM{
     Mount-Registry -Working_Directory $Working_Directory
     
     # Bypass System Requirements
-    Write-ColorOutput -FC Yellow "Bypassing system requirements(on the system image):"
+    Write-ColorOutput -FC Yellow "Bypassing system requirements (Install Image):"
     Set-BypassSystemRequirments
 
     # Disable Dynamic Content
@@ -534,7 +540,7 @@ function Exit-Script{
     Stop-Transcript
     
     if($SkipPause -ne $true) {
-        Read-Host -Prompt "Please enter to close the terminal"
+        Read-Host -Prompt "Please Press `"Enter`" to close this Terminal"
     }
     exit
 }
@@ -588,8 +594,16 @@ if (-not(Get-Command "oscdimg.exe" -ErrorAction SilentlyContinue)) {
     Write-ColorOutput -FC White "1. Open Browser to Windows ADK Install Page. (Close the script afterwards.)"
     Write-ColorOutput -FC White "2. Download from ntdevlabs tiny11builder Github Repository. (Script will download the file and continue.)"
     Write-ColorOutput -FC White "3. Do not download. Manually convert it later. (Disble ISO Creation at the last step.)"
-    $answer_oscdimg = Read-Host -Prompt "`nPlease Enter Option 1~3"
 
+    $validOSCDImgAnswer = $false
+    while($validOSCDImgAnswer -eq $false){
+        $answer_oscdimg = Read-Host -Prompt "`nPlease type-in your selected option (1~3)"
+        if($answer_oscdimg -in (1,2,3)) {
+            $validOSCDImgAnswer = $true
+        } else {
+            Write-ColorOutput -FC Red "`nInvalid Input :$answer_oscdimg"
+        }
+    }
     Write-Output "You Selected : $answer_oscdimg"
 
     switch ($answer_oscdimg) {
@@ -603,7 +617,7 @@ if (-not(Get-Command "oscdimg.exe" -ErrorAction SilentlyContinue)) {
         }
         3 {
             Write-ColorOutput -FC Yellow "Disabled ISO Creation. Clean-Up will also be disabled."
-            Write-ColorOutput -FC Yellow "Please output will be at $dir_source."
+            Write-ColorOutput -FC Yellow "Install Source output will be at $dir_source."
         }
     }
     pause
@@ -622,7 +636,9 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
    Write-ColorOutput -FC Yellow -BC Black "You can ignore this warning if you will be using the same ISO. `n`nAny image that is still mounted in the working directory will be un-mounted."
    Write-Output `n
    Write-ColorOutput -FC Yellow "Please enter `"Nuke`" to Reset the working directory or just press `"Enter`" to Continue."
-   $reset_root_dir = Read-Host -Prompt "`nPlease enter your selection"
+   $reset_root_dir = Read-Host -Prompt "`nPlease type-in your selection"
+
+   if($reset_root_dir -ne "") {Write-Output "You Entered: $reset_root_dir"} else {Write-Output "You Opted to Skip.."}
    # Need to Unmount Images Regardless..
    foreach ($item in Get-WindowsImage -Mounted) {if($item.path -imatch "slim11builder" ){$path=$($item.path.ToString());Write-Output "Unmounting $path.."; dism /Unmount-Image /MountDir:"$path" /Discard}}
    if ( $reset_root_dir -imatch 'nuke') {
@@ -635,10 +651,8 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
    Show-Slim11Header
 }
 Write-Output "Mount your Windows 11/10 Image ISO and enter the `"Drive Letter`" mount point."
-$driveLetter = Read-Host -Prompt "Please enter Drive Letter"
-Write-Output `n
-Write-Output "You Entered Drive Letter: `"$driveLetter`""
-Write-Output `n
+
+$driveLetter = Read-Host -Prompt "Please type-in the Drive Letter"
 
 # Check Paths for Boot and Install WIM
 # Boot Image Check
@@ -650,6 +664,12 @@ if ( -not ( Test-Path -Path $driveLetter":\sources\boot.wim" -PathType Leaf ) ) 
     )
 	Exit-Script
 }
+
+
+Write-Output `n
+Write-Output "You Entered the Drive Letter: `"$driveLetter`""
+Write-Output `n
+
 Write-ColorOutput -FC Green "- Boot Image Found!"
 # Install Image Check
 if ( -not ( Test-Path -Path $driveLetter":\sources\install.wim" -PathType Leaf ) ) {
@@ -682,21 +702,51 @@ Write-Output `n
 # Get Image Information from Source
 Write-Output "Getting Image information:"
 $raw_index_list = Get-WindowsImage -ImagePath "$dir_source\sources\install.$image_type"
-# Generate the index list
+$raw_index_is_array = $true
+if($raw_index_list -isnot [array]) {$raw_index_is_array = $false}
+# Generate the index list as Array
 $index_list = $raw_index_list.ForEach('ImageIndex')
 
 # Show the Image list at install.wim/esd and Select the desired Editions
 Write-Output ($raw_index_list|Format-List|Out-String)
-Write-ColorOutput -FC Yellow "Please select the index number of the edition you want to process or just type `"all`" to select all available editions"
-Write-ColorOutput -FC Yellow "e.g. 1, 2, 4...`ne.g. all"
+Write-ColorOutput -FC Yellow "Please select the Index Number(s) of the edition(s) you want to process or type `"All`" to select all the available editions"
+Write-ColorOutput -FC Yellow "e.g. 1, 6..    -> (Windows 11 Home, Windows 11 Pro etc..)"
+Write-ColorOutput -FC Yellow "e.g. 6         -> (Windows 11 Pro Only)"
+Write-ColorOutput -FC Yellow "e.g. all       -> (All available Editions)"
 Write-Output `n
-Write-ColorOutput -FC Red "Note: Invalid inputs are currently not validated. Please avoid erroneous input."
-$indices = Read-Host -Prompt "`nPlease enter the image index number"
-if ( $indices -eq '' ) {
-    Write-ColorOutput -FC Red "No input detected. Exiting.."
-    Exit-Script    
+Write-ColorOutput -FC Red "Note: For Multiple selections please use a comma `",`""
+# Write-ColorOutput -FC Red "Note: Invalid inputs are currently not validated. Please avoid erroneous input."
+$validIndex = $false
+While($validIndex -eq $false) {
+    $indices = Read-Host -Prompt "`nPlease type-in the `"Image Index`" number(s)"
+    if ( $indices -eq '' ) {
+        Write-ColorOutput -FC Red "No input detected. Exiting.."
+        Exit-Script
+    }
+    # all are selected
+    if ( $indices -imatch 'all' ) {
+        $indices = $index_list
+        $validIndex = $true
+        Write-ColorOutput -FC Magenta "You Just Selected `"All`" depending on your device and the number of images, The whole process will take a lot of time." 
+    }
+    # validate input
+    if ($indices.ToString() -imatch ","){
+        # multiple selection
+        foreach($item in $indices.ToString().Split(',')){
+            if($item.Trim() -in $index_list) {
+                $validIndex = $true
+                continue
+            } else {
+                Write-ColorOutput -FC Red "Selected Index $($item.Trim()) is not valid"
+            }
+        }
+    } else {
+        # single selection
+        if ($indices.ToString().Trim() -in $index_list) {
+            $validIndex = $true
+        }
+    }
 }
-if ( $indices -imatch 'all' ) { $indices = $index_list;Write-ColorOutput -FC Magenta "You Just Selected `"All`" depending on your device and the number of images, The whole process will take a lot of time." }
 
 # Format the Index/Indices and show formated
 $indices = $indices -replace '\n','' -split ',' | Where-Object {$_}
@@ -724,42 +774,47 @@ Write-Output `n
 Write-ColorOutput -FC White -BC Black "Processing Install Images:"
 Write-Output `n
 # Valid index flag
-$valid_selection=$false
+# $valid_selection=$false
 # Process Selected Index
 foreach ( $selected_index in $indices ) {
     # Verify that the Index is 
-    $verified_index = $index_list | Select-String -Pattern "\b$selected_index\b" -CaseSensitive
+    # $verified_index = $index_list | Select-String -Pattern "\b$selected_index\b" -CaseSensitive
 
-    if ($verified_index) {
-        # set true
-        $valid_selection=$true
-    } else {
-        # skip this index
-        continue
-    }
+    # if ($verified_index) {
+    #     # set true
+    #     $valid_selection=$true
+    # } else {
+    #     # skip this index
+    #     continue
+    # }
+
     # Get Edition Name
-    $current_edition_name = "$($raw_index_list.GetValue($verified_index.ToString() - 1).ImageName)"
+    if ($raw_index_is_array -eq $true) {
+        $current_edition_name = "$($raw_index_list.GetValue($selected_index.ToString() - 1).ImageName)"
+    } else {
+        $current_edition_name = "$($raw_index_list.ImageName)"
+    }
 
     # Mount selected index
     Write-ColorOutput -FC Black -BC White "Mounting $current_edition_name.."
 
-    mkdir -Path "$dir_scratch\$verified_index" -Force >$null
+    mkdir -Path "$dir_scratch\$selected_index" -Force >$null
     # When image type is esd need to export first to wim to enable modifications
     if ( $image_type -eq 'esd' ) {
         # Covert to WIM because ESD's are Read-Only
         Write-ColorOutput -FC Magenta "Extracting WIM from ESD.."
         
         # Extract to $dir_root
-        if ( Test-Path -Path "$dir_root\$verified_index-install.wim" -PathType Leaf ) { Remove-Item -Path "$dir_root\$verified_index-install.wim" -Force }
-        dism /Export-Image /SourceImageFile:$dir_source\sources\install.esd /SourceIndex:$verified_index /DestinationImageFile:$dir_root\$verified_index-install.wim /Compress:max /CheckIntegrity
+        if ( Test-Path -Path "$dir_root\$selected_index-install.wim" -PathType Leaf ) { Remove-Item -Path "$dir_root\$selected_index-install.wim" -Force }
+        dism /Export-Image /SourceImageFile:$dir_source\sources\install.esd /SourceIndex:$selected_index /DestinationImageFile:$dir_root\$selected_index-install.wim /Compress:max /CheckIntegrity
         if ($LASTEXITCODE -ne 0) {Exit-Script}
         
         # Mount to dir_scratch at index no. from extracted index-install.wim
-        dism /Mount-Image /ImageFile:$dir_root\$verified_index-install.wim /Index:1 /MountDir:$dir_scratch\$verified_index
+        dism /Mount-Image /ImageFile:$dir_root\$selected_index-install.wim /Index:1 /MountDir:$dir_scratch\$selected_index
         if ($LASTEXITCODE -ne 0) {Exit-Script}
     } else {
         # Mount to dir_scratch at index no. from souce install.wim
-        dism /Mount-Image /ImageFile:$dir_source\sources\install.wim /Index:$verified_index /MountDir:$dir_scratch\$verified_index
+        dism /Mount-Image /ImageFile:$dir_source\sources\install.wim /Index:$selected_index /MountDir:$dir_scratch\$selected_index
         if ($LASTEXITCODE -ne 0 -And $LASTEXITCODE -ne -1052638937) {Write-Output "$LASTEXITCODE";Exit-Script}
     }
     Write-ColorOutput -FC Green "Mounting Complete!"
@@ -767,37 +822,37 @@ foreach ( $selected_index in $indices ) {
 
     # Remove Provisioned Packages
     Write-ColorOutput -FC Black -BC White "Removing Provisioned Packages.."
-    Remove-ProvisionedAppPackagesFromFileListList -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_PackagesProvisioned_ConfigFile"
+    Remove-ProvisionedAppPackagesFromFileListList -Working_Directory "$dir_scratch\$selected_index" -Config_File "$Remove_PackagesProvisioned_ConfigFile"
     Write-Output `n
     
     # Remove Packages
     Write-ColorOutput -FC Black -BC White "Removing Packages.."
-    Remove-AppPackagesFromFileListList -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_Packages_ConfigFile"
+    Remove-AppPackagesFromFileListList -Working_Directory "$dir_scratch\$selected_index" -Config_File "$Remove_Packages_ConfigFile"
     Write-Output `n
 
     # Remove Directories
     Write-ColorOutput -FC Black -BC White "Removing Directories from Lists.."
-    Remove-Directories -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_Directories_ConfigFile"
+    Remove-Directories -Working_Directory "$dir_scratch\$selected_index" -Config_File "$Remove_Directories_ConfigFile"
     Write-Output `n
 
     # Remove Files
     Write-ColorOutput -FC Black -BC White "Removing Files from Lists.."
-    Remove-File -Working_Directory "$dir_scratch\$verified_index" -Config_File "$Remove_Files_ConfigFile"
+    Remove-File -Working_Directory "$dir_scratch\$selected_index" -Config_File "$Remove_Files_ConfigFile"
     Write-Output `n
 
     # Apply Registry Configurations
     Write-ColorOutput -FC Black -BC White "Applying Registry Configs.."
-    Update-RegistryOnInstallWIM -Working_Directory "$dir_scratch\$verified_index"
+    Update-RegistryOnInstallWIM -Working_Directory "$dir_scratch\$selected_index"
     Write-Output `n
 
     # Image - Cleanup
     Write-ColorOutput -FC Black -BC White "Cleaning Image..."
-    dism /image:"$dir_scratch\$verified_index" /Cleanup-Image /StartComponentCleanup /ResetBase
+    dism /image:"$dir_scratch\$selected_index" /Cleanup-Image /StartComponentCleanup /ResetBase
     Write-Output `n
 
     # Image - Save and Un-mount
     Write-ColorOutput -FC Black -BC White "Commiting Changes & Un-Mounting..."
-    dism /unmount-image /mountdir:"$dir_scratch\$verified_index" /commit
+    dism /unmount-image /mountdir:"$dir_scratch\$selected_index" /commit
     Write-Output `n
     
     Write-Output `n
@@ -805,12 +860,12 @@ foreach ( $selected_index in $indices ) {
     Write-Output `n
 }
 
-# Check for valid selection
-if (-not($valid_selection)){
-    # Exit the process because no selected index were valid
-    Write-ColorOutput -FC Red "Selected $indices did not match the valid index list."
-    Exit-Script
-}
+# # Check for valid selection
+# if (-not($valid_selection)){
+#     # Exit the process because no selected index were valid
+#     Write-ColorOutput -FC Red "Selected $indices did not match the valid index list."
+#     Exit-Script
+# }
 
 Write-ColorOutput -FC Green "Done Patching Install Image"
 Write-Output `n
@@ -830,8 +885,13 @@ $skipIndex = $false # use to skip the 1st image
 $source_wim = "$dir_root\source\sources\install.wim" # default source for wim.
 foreach ( $index in $indices ) {
     # Get Edition Name
-    $current_edition_name = "$($raw_index_list.GetValue($index.ToString() - 1).ImageName)"
-    Write-ColorOutput -FC Yellow "Merging $current_edition_name to install.$image_type.."
+    if ($raw_index_is_array -eq $true) {
+        $current_edition_name = "$($raw_index_list.GetValue($index.ToString() - 1).ImageName)"
+    } else {
+        $current_edition_name = "$($raw_index_list.ImageName)"
+    }
+
+    Write-ColorOutput -FC Yellow "Adding $current_edition_name to install.$image_type.."
 
     # For WIM, we directly modified the install.wim at source. We just need to extract from install.wim to new install wim.
     # for ESD, we extracted to each individual wim at working directory We need to convert the 1st image to install.esd and add others if any to this new install.esd
@@ -860,7 +920,7 @@ Write-Output "Removing Original Source Image.."
 Remove-Item "$dir_source\sources\install.$image_type"
 # Copy the new Source Image to directory
 Write-Output "Copying New Source Image.."
-Copy-FileWithProgress -Source "$dir_root\install.$image_type" -Destination "$dir_source\sources\install.$image_type" -Activity "Copying new install.$image_type to souce directory"
+Copy-FileWithProgress -Source "$dir_root\install.$image_type" -Destination "$dir_source\sources\install.$image_type" -Activity "Copying new install.$image_type to Source directory"
 Write-Output `n
 
 Write-ColorOutput -FC Green "Windows Image completed."
@@ -892,7 +952,7 @@ Write-Output `n
 
 
 Write-Output `n
-Write-ColorOutput -FC Green -BC Black "Slim11 Install & Boot Image are now completed! Finalizing other Tasks.."
+Write-ColorOutput -FC Green -BC Black "Slim11 Install & Boot Image are now complete! Finalizing other Tasks.."
 Write-Output `n
 
 # Copy Autounattend.xml to root of source directory
@@ -935,7 +995,7 @@ if ($create_iso -eq $true){
     Write-Output `n
     Write-ColorOutput -FC Red "Cleanup Working directory? $dir_root will be purge if you continue."
     Write-Output `n
-    $CleanUp = Read-Host -Prompt "Please enter `"No`" to skip clean up"
+    $CleanUp = Read-Host -Prompt "Please type-in `"No`" to skip clean-up & exit."
     if ($CleanUp -inotmatch "no") {
         Write-Output "Performing Cleanup..."
         Remove-Item -Recurse -Force "$dir_root"
