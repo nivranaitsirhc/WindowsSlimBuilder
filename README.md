@@ -1,42 +1,49 @@
 # Slim11Builder
 A Customizable Powershell Script to build a trimmed-down Windows 11 image.
 
-### Features:
-- Windows 10/11
-- Multiple Windows Edition Selection into one ISO.
-- Customize Remove App Package List/Files/Directories.
-- Log Console to file.
+## Features:
+- Supports Windows 11 / 10*
+- Supports multiple Windows Edition into a single ISO.
+- Customize what to remove thru from config file. (Provisioned Packages, App Packages, Files/Whole Directories)
+- Save Console Output into file.
+
+*<sup>A</sup><sub>(Please update the packages.ini files to add missing Bloat packages missing)</sub>*
 
 
-### Requirements
+## Requirements
 - Windows <strong>10/11</strong>
 - Windows Powershell >= <strong>5.1</strong>
-- Windows Deployment Image Servicing and Management (Accessible thru Path)
-### Requirements (Optional)
-- OSCDImg Executable (Accessible thru $PATH)
-- SetACL (Not Yet Implementation)
+- Windows Deployment Image Servicing and Management (dism.exe) <sup>*B*</sup>
+### Optional
+- OSCDImg executable.<sup>*B*</sup>
+- SetACL (Not Yet Implemented).<sup>*B*</sup>
 
-## Config Files
+*<sup>B</sup><sub>(Defined in $PATH or at the same root directory of this script)</sub>*
+
+## Remove Bloatware List Configuration Files
 - <strong>remove_packages_provisioned.ini</strong>
-  - List of Provisioned apps that will be removed
-  - Partial app name is recommended.
+  - Provisioned App Packages that will be removed
+  <br>*(partial app name is recommended)*
 - <strong>remove_packages.ini</strong>
-  - List of apps that will be removed
-  - Partial app name is recommended.
+  - Normal App Packages that will be removed
+  <br>*(partial app name is recommended)*
 - <strong>remove_directories.ini</strong>
-  - List of directories to be removed
-  - Full path is required.
-    - e.g. *Program Files (x86)\MicrosoftOffice*
+  - Directories to be removed
+  <br>*(Full Directory Path is recommended)*
+    - e.g. Program Files\Microsoft Edge
 - <strong>remove_files.ini</strong>
-  - List of files to be removed
-  - Full path is required.
+  - Files to be removed
+  <br>*(Full File Path is recommended)*
     - e.g. Windows\System32\Drivers\etc\hosts.exe
 
 
+## How to use
+Check and download the latest release zip and unzip it into a directory in your local machine.
+
+Run the ```Slim11Builder.ps1``` file and follow the console instructions.
 
 ## Warranty
 This script is provided as-is without warranty.
-Reporting bugs will be highly appreciated.
 
 ## Support
 * [Buy Me a Coffee](https://www.buymeacoffee.com/caccabo "A caffine of excitement")
