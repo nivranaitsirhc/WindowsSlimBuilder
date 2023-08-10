@@ -2,23 +2,23 @@
 A Customizable Powershell Script to build a trimmed-down Windows 11 image.
 
 ## Features:
-- Supports Windows 11 / 10*
+- Supports Windows 11 / 10 <sup>*A*</sup>
 - Supports multiple Windows Edition into a single ISO.
 - Customize what to remove thru from config file. (Provisioned Packages, App Packages, Files/Whole Directories)
 - Save Console Output into file.
 
-*<sup>A</sup><sub>(Please update the packages.ini files to add missing Bloat packages missing)</sub>*
+*<sup>A</sup> <sub>(This script is intended for Windows 11 but you can use this also for Windows 10. Just update the ```remove_packages.ini```/```remove_packages_provisioned.ini``` files and add any missing bloat package name for Windows 10)</sub>*
 
 
 ## Requirements
 - Windows <strong>10/11</strong>
-- Windows Powershell >= <strong>5.1</strong>
-- Windows Deployment Image Servicing and Management (dism.exe) <sup>*B*</sup>
+- Windows Powershell *( ≥ <strong>5.1</strong> )*
+
 ### Optional
 - OSCDImg executable.<sup>*B*</sup>
 - SetACL (Not Yet Implemented).<sup>*B*</sup>
 
-*<sup>B</sup><sub>(Defined in $PATH or at the same root directory of this script)</sub>*
+*<sup>B</sup> <sub>(Defined in $PATH or at the same root directory of this script)</sub>*
 
 ## Remove Bloatware List Configuration Files
 - <strong>remove_packages_provisioned.ini</strong>
