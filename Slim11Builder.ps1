@@ -737,6 +737,7 @@ While($validIndex -eq $false) {
                 $validIndex = $true
                 continue
             } else {
+$validIndex = $false
                 Write-ColorOutput -FC Red "Selected Index $($item.Trim()) is not valid"
             }
         }
