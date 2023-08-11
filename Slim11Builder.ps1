@@ -42,9 +42,6 @@ $dir_source     = "$dir_root\source"
 # Removal Configuration Files
 # Configure these files to what you want to remove.
 
-# Remove List Configuration Comment Character (default for an ini file is ;)
-$ConfigListCommentChar                        = ";"
-
 # Remove App Packages List
 $Remove_Packages_ConfigFile                   = "$PSScriptRoot\remove_packages.ini"
 # Remove Provisioned App Packages List
@@ -55,16 +52,20 @@ $Remove_Directories_ConfigFile                = "$PSScriptRoot\remove_directorie
 $Remove_Files_ConfigFile                      = "$PSScriptRoot\remove_files.ini"
 
 
-# Constant Variables (Do Not Change these values)
+# Constant Variables 
+# (Do Not Change these values unless you know what you are doing)
+
+# Remove List Configuration Comment Character (default for an ini file is ;)
+$ConfigListCommentChar      = ";"
+
 # Install WIM constant used in varying degrees to handle ESD/WIM image format
-$image_type     = "wim"
+$image_type                 = "wim"
 
 # Flag set to include creation of bootable ISO.
-$create_iso     = $true
-
+$create_iso                 = $true
 
 # Add Script Path to Current Environment
-$env:PATH += ";$PSScriptRoot"
+$env:PATH                  += ";$PSScriptRoot"
 
 # -------------------------------------------------------------------------------------
 # End Init
@@ -540,7 +541,7 @@ function Exit-Script{
     Stop-Transcript
     
     if($SkipPause -ne $true) {
-        Read-Host -Prompt "Please Press `"Enter`" to close this Terminal"
+        Read-Host -Prompt "`nPlease Press `"Enter`" to close this Terminal"
     }
     exit
 }
@@ -635,7 +636,7 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
    Write-Output `n
    Write-ColorOutput -FC Yellow -BC Black "You can ignore this warning if you will be using the same ISO. `n`nAny image that is still mounted in the working directory will be un-mounted."
    Write-Output `n
-   Write-ColorOutput -FC Yellow "Please enter `"Nuke`" to Reset the working directory or just press `"Enter`" to Continue."
+   Write-ColorOutput -FC Yellow "Please enter `"Nuke`" to Reset the working directory or press `"Enter`" to Continue."
    $reset_root_dir = Read-Host -Prompt "`nPlease type-in your selection"
 
    if($reset_root_dir -ne "") {Write-Output "You Entered: $reset_root_dir"} else {Write-Output "You Opted to Skip.."}
@@ -644,53 +645,53 @@ if (-not ((Get-ChildItem "$dir_root" -force | Select-Object -First 1 | Measure-O
    if ( $reset_root_dir -imatch 'nuke') {
         Write-Output "Clearing Working Directory.."
         # Take Ownership of $dir_scratch and reset all permissions.
-        takeown /F "$dir_scratch" >$null
-        icacls "$dir_scratch\*" /Q /C /T /reset >$null
+        # takeown /F "$dir_scratch" >$null
+        # icacls "$dir_scratch\*" /Q /C /T /reset >$null
         Remove-Item -Recurse -Force -Path "$dir_root" >$null
    }
    Show-Slim11Header
 }
-Write-Output "Mount your Windows 11/10 Image ISO and enter the `"Drive Letter`" mount point."
 
-$driveLetter = Read-Host -Prompt "Please type-in the Drive Letter"
+Write-Output "Mount your Windows 11/10 Image ISO and enter the mount point `"Drive Letter`"."
+$validDriveLetter = $false
+while($validDriveLetter -eq $false){
+    $validDriveLetter = $true
+    $driveLetter = Read-Host -Prompt "`nPlease type-in the Drive Letter"
 
-# Check Paths for Boot and Install WIM
-# Boot Image Check
-Write-ColorOutput -FC Yellow 'Checking Paths:'
-if ( -not ( Test-Path -Path $driveLetter":\sources\boot.wim" -PathType Leaf ) ) {
-    Write-ColorOutput -FC Red (
-        "Can't find Windows OS Installation files in the specified Drive Letter..
-        `nPlease enter the correct DVD Drive Letter.."
-    )
-	Exit-Script
-}
-
-
-Write-Output `n
-Write-Output "You Entered the Drive Letter: `"$driveLetter`""
-Write-Output `n
-
-Write-ColorOutput -FC Green "- Boot Image Found!"
-# Install Image Check
-if ( -not ( Test-Path -Path $driveLetter":\sources\install.wim" -PathType Leaf ) ) {
-    if ( -not ( Test-Path -Path $driveLetter":\sources\install.esd" -PathType Leaf ) ) {
-        Write-ColorOutput -FC Red (
-            "Missing install wim/esd from installation drive..
-            `nPlease enter the correct DVD Drive Letter.."
-        )
-        Exit-Script
-    }
-    $image_type = "esd"
-}
-Write-ColorOutput -FC Green "- Install Image Found!"
-Write-Output `n
-# End Check Paths
-
-# Show ESD Warning
-if ($image_type -eq "esd") {
-    Write-ColorOutput -FC Magenta -BC Black "ESD Format detected!"
-    Write-ColorOutput -FC Red -BC Black "Warning! Since ESD's are read-only. A few steps with a lot of overhead are necessary.`nThese are CPU/Memory intensive and may lag your computer specially on low-end devices."
     Write-Output `n
+    Write-Output "You Entered the Drive Letter: `"$driveLetter`""
+    Write-Output `n
+
+    # Check Paths for Boot and Install WIM
+    # Boot Image Check
+    Write-ColorOutput -FC Yellow 'Checking Paths:'
+    if ( -not ( Test-Path -Path $driveLetter":\sources\boot.wim" -PathType Leaf ) ) {
+        Write-ColorOutput -FC Red "Can't find Windows OS Boot Image in the specified Drive Letter.."
+        $validDriveLetter = $false
+        #continue
+    } else {
+        Write-ColorOutput -FC Green "- Boot Image Found!"
+    }
+
+    # Install Image Check
+    if ( -not ( Test-Path -Path $driveLetter":\sources\install.wim" -PathType Leaf ) ) {
+        if ( -not ( Test-Path -Path $driveLetter":\sources\install.esd" -PathType Leaf ) ) {
+            Write-ColorOutput -FC Red "Can't find Windows OS Install Image in the specified Drive Letter.."
+            $validDriveLetter = $false
+            #continue
+        } else {
+            $image_type = "esd"
+            # Show ESD Warning
+            Write-ColorOutput -FC Magenta -BC Black "ESD Format detected!"
+            Write-ColorOutput -FC Red -BC Black "Warning! Since ESD's are read-only. A few steps with a lot of overhead are necessary.`nThese are CPU/Memory intensive and may lag your computer specially on low-end devices."
+            Write-Output `n
+        }
+    } else {
+        Write-ColorOutput -FC Green "- Install Image Found!"
+        Write-Output `n
+    }
+    # End Check Paths
+    if ($validDriveLetter -eq $false) {Write-ColorOutput -FC Red "`nPlease enter the correct Mount Point/DVD Drive Letter.."}
 }
 
 # Copy Windwos image to source directory
@@ -709,8 +710,8 @@ $index_list = $raw_index_list.ForEach('ImageIndex')
 
 # Show the Image list at install.wim/esd and Select the desired Editions
 Write-Output ($raw_index_list|Format-List|Out-String)
-Write-ColorOutput -FC Yellow "Please select the Index Number(s) of the edition(s) you want to process or type `"All`" to select all the available editions"
-Write-ColorOutput -FC Yellow "e.g. 1, 6..    -> (Windows 11 Home, Windows 11 Pro etc..)"
+Write-ColorOutput -FC Yellow "`nPlease select the Index Number(s) of the edition(s) you want to process or type `"All`" to select all the available editions"
+Write-ColorOutput -FC Yellow "e.g. 1, 4, 6.. -> (Windows 11 Home, Windows 11 Education, Windows 11 Pro etc..)"
 Write-ColorOutput -FC Yellow "e.g. 6         -> (Windows 11 Pro Only)"
 Write-ColorOutput -FC Yellow "e.g. all       -> (All available Editions)"
 Write-Output `n
@@ -732,12 +733,12 @@ While($validIndex -eq $false) {
     # validate input
     if ($indices.ToString() -imatch ","){
         # multiple selection
+        $validIndex = $true
         foreach($item in $indices.ToString().Split(',')){
             if($item.Trim() -in $index_list) {
-                $validIndex = $true
                 continue
             } else {
-$validIndex = $false
+                $validIndex = $false
                 Write-ColorOutput -FC Red "Selected Index $($item.Trim()) is not valid"
             }
         }
@@ -750,7 +751,7 @@ $validIndex = $false
 }
 
 # Format the Index/Indices and show formated
-$indices = $indices -replace '\n','' -split ',' | Where-Object {$_}
+$indices = $indices -replace '\n|\s','' -split ',' | Where-Object {$_}
 Write-ColorOutput -FC Green "`nSelected Index/Indices : $indices"
 Write-Output `n
 
@@ -774,20 +775,8 @@ Write-Output `n
 Write-Output `n
 Write-ColorOutput -FC White -BC Black "Processing Install Images:"
 Write-Output `n
-# Valid index flag
-# $valid_selection=$false
 # Process Selected Index
 foreach ( $selected_index in $indices ) {
-    # Verify that the Index is 
-    # $verified_index = $index_list | Select-String -Pattern "\b$selected_index\b" -CaseSensitive
-
-    # if ($verified_index) {
-    #     # set true
-    #     $valid_selection=$true
-    # } else {
-    #     # skip this index
-    #     continue
-    # }
 
     # Get Edition Name
     if ($raw_index_is_array -eq $true) {
@@ -800,7 +789,7 @@ foreach ( $selected_index in $indices ) {
     Write-ColorOutput -FC Black -BC White "Mounting $current_edition_name.."
 
     mkdir -Path "$dir_scratch\$selected_index" -Force >$null
-    # When image type is esd need to export first to wim to enable modifications
+    # When image type is esd, Need to export to wim first to enable modifications
     if ( $image_type -eq 'esd' ) {
         # Covert to WIM because ESD's are Read-Only
         Write-ColorOutput -FC Magenta "Extracting WIM from ESD.."
@@ -861,12 +850,6 @@ foreach ( $selected_index in $indices ) {
     Write-Output `n
 }
 
-# # Check for valid selection
-# if (-not($valid_selection)){
-#     # Exit the process because no selected index were valid
-#     Write-ColorOutput -FC Red "Selected $indices did not match the valid index list."
-#     Exit-Script
-# }
 
 Write-ColorOutput -FC Green "Done Patching Install Image"
 Write-Output `n
@@ -892,10 +875,10 @@ foreach ( $index in $indices ) {
         $current_edition_name = "$($raw_index_list.ImageName)"
     }
 
-    Write-ColorOutput -FC Yellow "Adding $current_edition_name to install.$image_type.."
+    Write-ColorOutput -FC Yellow "`nAdding $current_edition_name to install.$image_type.."
 
-    # For WIM, we directly modified the install.wim at source. We just need to extract from install.wim to new install wim.
-    # for ESD, we extracted to each individual wim at working directory We need to convert the 1st image to install.esd and add others if any to this new install.esd
+    # For WIM, Directly modify the install.wim at source. Extract from Source install.wim to the new install.wim.
+    # For ESD, Extract to each individual wim at working directory. Convert the 1st image to install.esd and add the others to the new install.esd.
     if ( $image_type -eq 'esd' ) {
         # update source wim to current index
         $source_wim = "$dir_root\$index-install.wim"
@@ -996,7 +979,7 @@ if ($create_iso -eq $true){
     Write-Output `n
     Write-ColorOutput -FC Red "Cleanup Working directory? $dir_root will be purge if you continue."
     Write-Output `n
-    $CleanUp = Read-Host -Prompt "Please type-in `"No`" to skip clean-up & exit."
+    $CleanUp = Read-Host -Prompt "`nPlease type-in `"No`" to skip clean-up & exit."
     if ($CleanUp -inotmatch "no") {
         Write-Output "Performing Cleanup..."
         Remove-Item -Recurse -Force "$dir_root"
