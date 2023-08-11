@@ -1,4 +1,4 @@
-# Slim11Builder
+# Windows Slim Builder
 A Customizable Powershell Script to build a trimmed-down Windows 11 image.
 
 ## Features:
@@ -40,7 +40,7 @@ A Customizable Powershell Script to build a trimmed-down Windows 11 image.
 ## How to use
 Check and download the latest release zip and unzip it into a directory in your local machine.
 
-Run the ```Slim11Builder.ps1``` file and follow the console instructions.
+Run the ```WinSlimBuilder.ps1``` file and follow the console instructions.
 
 ## Warranty
 This script is provided as-is without warranty.
@@ -55,7 +55,7 @@ This script is provided as-is without warranty.
 
 ## Sample Terminal Output
 ```
-Slim 11 Image Builder
+Slim Image Builder
       _  _                _  _     _             _  _      _
  ___ | |(_) _ __ ___     / |/ |   | |__   _   _ (_)| |  __| |  ___  _ __
 / __|| || || '_ ` _ \    | || |   | '_ \ | | | || || | / _` | / _ \| '__|
