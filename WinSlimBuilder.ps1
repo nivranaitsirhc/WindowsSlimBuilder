@@ -315,10 +315,10 @@ function Remove-Directories{
     Write-Output "Remove-Directories: Removing Directory..`n"
     foreach ( $app_dir in [System.IO.File]::ReadLines("$Config_File")) {
         if ($app_dir.ToString().SubString(0,1) -eq "$ConfigListCommentChar") {continue}
-        if ( Test-Path -Path "$Working_Directory\$app_dir" -PathType Leaf ) {
+        if ( Test-Path -Path "$Working_Directory\$app_dir" -PathType Container ) {
             Write-Output "Remove-Directories: Processing `"$app_dir`""
-            takeown /f "$Working_Directory\$app_dir" >$null
-            icacls "$Working_Directory\$app_dir\*" /reset /Q /T /C
+            #takeown /f "$Working_Directory\$app_dir" >$null
+            #icacls "$Working_Directory\$app_dir\*" /reset /Q /T /C
             Remove-Item -Recurse -Force "$Working_Directory\$app_dir"
         } else {
             Write-ColorOutput -FC Magenta "Remove-Directories: Not found! $app_dir"
@@ -468,6 +468,7 @@ function Update-RegistryOnInstallWIM{
     Reg add "HKLM\WinSlimNTUSER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" /v "SilentInstalledAppsEnabled" /t REG_DWORD /d "0" /f
     Write-ColorOutput -FC Green "Enable  - DisableWindowsConsumerFeatures.."
     Reg add "HKLM\WinSlimSOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableWindowsConsumerFeatures" /t REG_DWORD /d "1" /f
+    Reg add "HKLM\WinSlimSOFTWARE\Policies\Microsoft\Windows\CloudContent" /v "DisableConsumerAccountStateContent" /t REG_DWORD /d "1" /f
     Write-ColorOutput -FC Green "Disable - ConfigureStartPins.."
     Reg add "HKLM\WinSlimSOFTWARE\Microsoft\PolicyManager\current\device\Start" /v "ConfigureStartPins" /t REG_SZ /d "{`"pinnedList`": [{}]}" /f
     Write-Output `n
@@ -838,7 +839,7 @@ foreach ( $selected_index in $indices ) {
     Write-ColorOutput -FC Black -BC White "Cleaning Image..."
     dism /image:"$dir_scratch\$selected_index" /Cleanup-Image /StartComponentCleanup /ResetBase
     Write-Output `n
-
+    
     # Image - Save and Un-mount
     Write-ColorOutput -FC Black -BC White "Commiting Changes & Un-Mounting..."
     dism /unmount-image /mountdir:"$dir_scratch\$selected_index" /commit
