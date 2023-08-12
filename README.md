@@ -7,6 +7,11 @@ A Customizable Powershell Script to build a trimmed-down Windows 11/10 image.
 - Customize what to remove thru from config file. (Provisioned Packages, App Packages, Files/Whole Directories)
 - Save Console Output into file.
 
+### Beta (To-Do)
+- Implement Whitelist/Blacklist type
+- Identify Windows 10 / Windows 11
+- Implement Strategy by OS Type
+
 *<sup>A</sup> <sub>(This script is intended for Windows 11 but you can use this for Windows 10. Just update the ```remove_packages.ini```/```remove_packages_provisioned.ini``` files and add any missing bloat package name for Windows 10)</sub>*
 
 
@@ -52,6 +57,7 @@ This script is provided as-is without warranty.
 
 ## Credits & Thanks
 * [Tiny11 Builder](https://github.com/ntdevlabs/tiny11builder)
+* [Windows10Debloater](https://github.com/Sycnex/Windows10Debloater)
 
 ## Sample Terminal Output
 ```
